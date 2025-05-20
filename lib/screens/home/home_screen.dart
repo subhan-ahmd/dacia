@@ -61,6 +61,7 @@ class _VehicleDataScreenState extends ConsumerState<VehicleDataScreen> {
             onPressed: () async {
               await ref.read(connectedDevicesProvider.notifier).disconnect();
               await ref.read(connectedDevicesProvider.notifier).connect();
+              _startListening();
             },
           ),
         ],
