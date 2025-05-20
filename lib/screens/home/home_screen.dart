@@ -21,7 +21,7 @@ class _VehicleDataScreenState extends ConsumerState<VehicleDataScreen> {
   }
 
   Future<void> _startListening() async {
-    String deviceId = 'YOUR_DEVICE_ID';
+    String deviceId = ConnectedDevices.deviceId;
 
     await _vehicleDataService.startListening(deviceId);
 
