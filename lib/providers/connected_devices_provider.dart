@@ -8,7 +8,9 @@ part 'connected_devices_provider.g.dart';
 
 @riverpod
 class ConnectedDevices extends _$ConnectedDevices {
-  static String deviceId = "08:A6:F7:47:56:72";
+  static String deviceId =
+      "DC:0D:30:DA:D9:C9"; // MARIO'S
+      // "08:A6:F7:47:56:72"; //ESP32
   final FlutterReactiveBle _ble = FlutterReactiveBle();
   final Set<String> _connectedDeviceIds = {};
   StreamSubscription? _connectionSubscription;
