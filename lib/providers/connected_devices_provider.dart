@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:dacia/providers/loading_provider.dart';
+import 'package:dacia/providers/selected_device_provider.dart';
 import 'package:dacia/utils/toast_manager.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -8,9 +9,9 @@ part 'connected_devices_provider.g.dart';
 
 @riverpod
 class ConnectedDevices extends _$ConnectedDevices {
-  static String deviceId =
-      "DC:0D:30:DA:D9:C9"; // MARIO'S
-      // "08:A6:F7:47:56:72"; //ESP32
+  // static String deviceId =
+  //     // "DC:0D:30:DA:D9:C9"; // MARIO'S
+  //     "08:A6:F7:47:56:72"; //ESP32
   final FlutterReactiveBle _ble = FlutterReactiveBle();
   final Set<String> _connectedDeviceIds = {};
   StreamSubscription? _connectionSubscription;
@@ -45,7 +46,7 @@ class ConnectedDevices extends _$ConnectedDevices {
     });
   }
 
-  bool isDeviceConnected() => _connectedDeviceIds.contains(deviceId);
+  bool isDeviceConnected({String? id}) => _connectedDeviceIds.contains(id??(ref.read(selectedDeviceProvider)?.id??""));
 
   Set<String> get connectedDevices => _connectedDeviceIds;
 
@@ -58,24 +59,26 @@ class ConnectedDevices extends _$ConnectedDevices {
   }
 
   Future<void> checkAndConnect() async {
-    if (!isDeviceConnected()) {
-      if(!isConnecting){
-        isConnecting = true;
-        await connect();
-        isConnecting = false;
+    if(ref.read(selectedDeviceProvider)!=null){
+      if (!isDeviceConnected()) {
+        if (!isConnecting) {
+          isConnecting = true;
+          await connect();
+          isConnecting = false;
+        }
       }
     }
   }
 
   Future<void> connect() async {
-    ref.read(loadingProvider(deviceId).notifier).toggle(true);
-    ToastManager.show("Connecting to $deviceId");
+    ref.read(loadingProvider(ref.read(selectedDeviceProvider)?.id??"").notifier).toggle(true);
+    ToastManager.show("Connecting to ${ref.read(selectedDeviceProvider)?.id??""}");
     try {
       final completer = Completer<void>();
       if (!ref.read(connectedDevicesProvider.notifier).isDeviceConnected()) {
         final subscription = FlutterReactiveBle()
             .connectToDevice(
-          id: deviceId,
+          id: ref.read(selectedDeviceProvider)?.id??"",
           connectionTimeout: const Duration(seconds: 35),
         )
             .listen(
@@ -96,7 +99,7 @@ class ConnectedDevices extends _$ConnectedDevices {
         );
         ref
             .read(connectedDevicesProvider.notifier)
-            .storeConnectionSubscription(deviceId, subscription);
+            .storeConnectionSubscription(ref.read(selectedDeviceProvider)?.id??"", subscription);
       } else {
         if (!completer.isCompleted) {
           completer.completeError("Already Connected");
@@ -109,19 +112,23 @@ class ConnectedDevices extends _$ConnectedDevices {
       ToastManager.show("Error: $e");
     }
     if (ref.read(connectedDevicesProvider.notifier).isDeviceConnected()) {
-      ToastManager.show("Connected to $deviceId");
+      ToastManager.show("Connected to ${ref.read(selectedDeviceProvider)?.id??""}");
     }
-    ref.read(loadingProvider(deviceId).notifier).toggle(false);
+    ref.read(loadingProvider(ref.read(selectedDeviceProvider)?.id??"").notifier).toggle(false);
   }
 
   Future<void> disconnect() async {
-    _deviceConnections[deviceId]?.cancel();
-    _deviceConnections.remove(deviceId);
+    if(ref.read(selectedDeviceProvider)!=null){
+      _deviceConnections[ref.read(selectedDeviceProvider)?.id ?? ""]?.cancel();
+      _deviceConnections.remove(ref.read(selectedDeviceProvider)?.id ?? "");
 
-    if (_connectedDeviceIds.contains(deviceId)) {
-      _connectedDeviceIds.remove(deviceId);
-      state = AsyncData(Set<String>.from(_connectedDeviceIds));
+      if (_connectedDeviceIds
+          .contains(ref.read(selectedDeviceProvider)?.id ?? "")) {
+        _connectedDeviceIds.remove(ref.read(selectedDeviceProvider)?.id ?? "");
+        state = AsyncData(Set<String>.from(_connectedDeviceIds));
+      }
+      ToastManager.show(
+          "Disconnected from ${ref.read(selectedDeviceProvider)?.id ?? ""}");
     }
-      ToastManager.show("Disconnected from $deviceId");
   }
 }

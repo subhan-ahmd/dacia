@@ -13,8 +13,8 @@ class MyApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(connectedDevicesProvider);
-    Future.microtask(
-        () => ref.read(connectedDevicesProvider.notifier).checkAndConnect());
+    // Future.microtask(
+    //     () => ref.read(connectedDevicesProvider.notifier).checkAndConnect());
     return MaterialApp(
       title: 'Dacia',
       theme: ThemeData(
