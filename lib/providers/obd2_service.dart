@@ -1,11 +1,35 @@
 // lib/providers/obd2_service_provider.dart
+import 'dart:convert';
+
 import 'package:dacia/providers/obd2_data.dart';
 import 'package:dacia/providers/selected_device_provider.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'dart:async';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter/material.dart';
 
 part 'obd2_service.g.dart';
+
+void printPrettyJson(dynamic jsonData) {
+  try {
+    // Convert to string if already a Map or List
+    final String jsonString =
+        jsonData is String ? jsonData : jsonEncode(jsonData);
+
+    // Decode and encode with indentation
+    final dynamic decodedJson = jsonDecode(jsonString);
+    final String prettyJson =
+        const JsonEncoder.withIndent('  ').convert(decodedJson);
+
+    // Print with a divider for better visibility
+    debugPrint('┌─────────── JSON ───────────┐');
+    prettyJson.split('\n').forEach((line) => debugPrint('│ $line'));
+    debugPrint('└─────────────────────────────┘');
+  } catch (e) {
+    debugPrint('Error formatting JSON: $e');
+    debugPrint('Original data: $jsonData');
+  }
+}
 
 @riverpod
 class OBD2Service extends _$OBD2Service {
@@ -64,6 +88,7 @@ class OBD2Service extends _$OBD2Service {
         )
         .listen(
           (data) {
+            printPrettyJson(data);
             final parsedData = parseData(data);
             if (parsedData.isNotEmpty) {
               ref.read(oBD2DataProvider.notifier).updateData(parsedData);
