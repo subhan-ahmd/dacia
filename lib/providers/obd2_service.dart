@@ -95,6 +95,7 @@ class OBD2Service extends _$OBD2Service {
     // Get current state to maintain other values
     final currentState = ref.read(oBD2DataProvider);
     Map<String, dynamic> parsedData = Map<String, dynamic>.from(currentState);
+     parsedData["full"]= hexData;
 
     switch (sid) {
       case '42e0': // SoC

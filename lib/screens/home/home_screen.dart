@@ -76,6 +76,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 '${obd2Data['voltage']?.toStringAsFixed(1)}V'),
             _buildDataCard(
                 'Speed', '${obd2Data['speed']?.toStringAsFixed(1)} km/h'),
+            _buildDataCard('Hex Data', '${obd2Data['full']}'),
           ],
         ),
       ),
