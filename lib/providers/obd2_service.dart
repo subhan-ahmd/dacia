@@ -12,8 +12,8 @@ class OBD2Service extends _$OBD2Service {
   final FlutterReactiveBle _ble = FlutterReactiveBle();
   StreamSubscription? _subscription;
 
-  late final String serviceUuid = "";
-  late final String characteristicUuid = "";
+  late final String serviceUuid = "e7810a71-73ae-499d-8c15-faa9aef0c3f2";
+  late final String characteristicUuid = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f";
 
   @override
   void build() {}
