@@ -11,12 +11,34 @@ class OBD2Data extends _$OBD2Data {
       'soc': 0.0,
       'voltage': 0.0,
       'speed': 0.0,
-      'full':""
+      'raw': '',
+      'lastUpdate': DateTime.now(),
+      'connectionStatus': 'Disconnected',
+      'error': null,
     };
   }
 
   void updateData(Map<String, dynamic> newData) {
-    // Replace the entire state with new data
-    state = newData;
+    state = {
+      ...state,
+      ...newData,
+      'lastUpdate': DateTime.now(),
+    };
+  }
+
+  void setError(String? error) {
+    state = {
+      ...state,
+      'error': error,
+      'lastUpdate': DateTime.now(),
+    };
+  }
+
+  void setConnectionStatus(String status) {
+    state = {
+      ...state,
+      'connectionStatus': status,
+      'lastUpdate': DateTime.now(),
+    };
   }
 }

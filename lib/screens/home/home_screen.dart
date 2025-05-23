@@ -70,13 +70,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     )),
               ],
             ),
+            if (obd2Data['error'] != null)
+              Card(
+                margin: const EdgeInsets.all(8.0),
+                color: Colors.red.shade100,
+                child: ListTile(
+                  title: Text('Error: ${obd2Data['error']}'),
+                ),
+              ),
             _buildDataCard(
                 'Battery SoC', '${obd2Data['soc']?.toStringAsFixed(1)}%'),
             _buildDataCard('Battery Voltage',
                 '${obd2Data['voltage']?.toStringAsFixed(1)}V'),
             _buildDataCard(
                 'Speed', '${obd2Data['speed']?.toStringAsFixed(1)} km/h'),
-            _buildDataCard('Hex Data', '${obd2Data['full']}'),
+            _buildDataCard('Hex Data', '${obd2Data['raw']}'),
+            if (obd2Data['lastUpdate'] != null)
+              Card(
+                margin: const EdgeInsets.all(8.0),
+                child: ListTile(
+                  title: Text('Last Update: ${obd2Data['lastUpdate']}'),
+                ),
+              ),
           ],
         ),
       ),
