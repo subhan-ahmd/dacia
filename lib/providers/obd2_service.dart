@@ -37,17 +37,21 @@ class OBD2Service extends _$OBD2Service {
   late final String serviceUuid = "e7810a71-73ae-499d-8c15-faa9aef0c3f2";
   late final String characteristicUuid = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f";
 
-  // PIDs for data requests
+  // CAN IDs for different controllers
+  static const String EVC_CAN_ID = '7ec';  // Electric Vehicle Controller
+  static const String LBC_CAN_ID = '7bb';  // Lithium Battery Controller
+
+  // Request PIDs
   static const String PID_BATTERY_VOLTAGE = '229005'; // Pack Voltage CAN value (scale: 0.1 V)
   static const String PID_VEHICLE_SPEED = '222003';   // Vehicle speed (scale: 0.01 km/h)
   static const String PID_BATTERY_TEMP = '222001';    // Battery Rack temperature (scale: 1 °C, offset: 40)
   static const String PID_BATTERY_CURRENT = '22900D'; // Instant Current of Battery (scale: 0.025 A, offset: 48000)
 
   // Response PIDs
-  static const String RESP_BATTERY_VOLTAGE = '629005'; // Response for Pack Voltage
-  static const String RESP_VEHICLE_SPEED = '622003';   // Response for Vehicle speed
-  static const String RESP_BATTERY_TEMP = '622001';    // Response for Battery Rack temperature
-  static const String RESP_BATTERY_CURRENT = '62900D'; // Response for Instant Current of Battery
+  static const String RESP_BATTERY_VOLTAGE = '629005'; // Response for battery voltage
+  static const String RESP_VEHICLE_SPEED = '622003'; // Response for vehicle speed
+  static const String RESP_BATTERY_TEMP = '622001'; // Response for battery temperature
+  static const String RESP_BATTERY_CURRENT = '62900D'; // Response for battery current
 
   @override
   void build() {}
@@ -119,7 +123,13 @@ class OBD2Service extends _$OBD2Service {
     }
 
     try {
-      await _sendCommand('22$pid'); // Add mode prefix for Spring protocol
+      // Determine which CAN ID to use based on the PID
+      String canId = pid.startsWith('22') ? EVC_CAN_ID : LBC_CAN_ID;
+
+      // First set the CAN ID using AT SH command
+      await _sendCommand('AT SH $canId');
+      // Then send the actual request
+      await _sendCommand(pid);
     } catch (e) {
       print('Error requesting data: $e');
       ref.read(oBD2DataProvider.notifier).setError('Failed to request data: $e');
