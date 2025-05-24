@@ -6,7 +6,10 @@ part 'obd2_data.g.dart';
 class OBD2Data extends _$OBD2Data {
   @override
   Map<String, dynamic> build() {
-    return {
+    return emptyData();
+  }
+
+  Map<String, dynamic> emptyData()=>{
       'voltage': 0.0,
       'speed': 0.0,
       'temperature': 0.0,
@@ -16,6 +19,9 @@ class OBD2Data extends _$OBD2Data {
       'connectionStatus': 'Disconnected',
       'error': null,
     };
+
+  void reset() {
+    state = emptyData();
   }
 
   void updateData(Map<String, dynamic> newData) {

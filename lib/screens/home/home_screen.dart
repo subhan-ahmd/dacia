@@ -39,6 +39,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             icon: Icon(Icons.refresh),
             onPressed: () async {
               await ref.read(connectedDevicesProvider.notifier).disconnect();
+              ref.read(oBD2DataProvider.notifier).reset();
               ref.read(deviceManagerProvider.notifier).refreshScan();
             },
           ),

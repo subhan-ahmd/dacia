@@ -134,6 +134,7 @@ class ConnectedDevices extends _$ConnectedDevices {
       }
       ToastManager.show(
           "Disconnected from ${ref.read(selectedDeviceProvider)?.id ?? ""}");
+      ref.read(selectedDeviceProvider.notifier).clear();
     }
   }
 }

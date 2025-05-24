@@ -10,4 +10,8 @@ class SelectedDevice extends _$SelectedDevice {
   void select(DiscoveredDevice device) {
     state = device;
   }
+
+  void clear() {
+    state = null;
+  }
 }

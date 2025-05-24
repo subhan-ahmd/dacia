@@ -1,9 +1,12 @@
 import 'package:dacia/providers/connected_devices_provider.dart';
 import 'package:dacia/screens/home/home_screen.dart';
+import 'package:dacia/utils/permission_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await PermissionManager.check();
   runApp(ProviderScope(child: const MyApp()));
 }
 
@@ -13,8 +16,6 @@ class MyApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(connectedDevicesProvider);
-    // Future.microtask(
-    //     () => ref.read(connectedDevicesProvider.notifier).checkAndConnect());
     return MaterialApp(
       title: 'Dacia',
       theme: ThemeData(
