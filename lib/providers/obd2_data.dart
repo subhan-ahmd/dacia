@@ -1,4 +1,3 @@
-// lib/providers/obd2_data_provider.dart
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'obd2_data.g.dart';
@@ -11,6 +10,8 @@ class OBD2Data extends _$OBD2Data {
       'soc': 0.0,
       'voltage': 0.0,
       'speed': 0.0,
+      'temperature': 0.0,
+      'current': 0.0,
       'raw': '',
       'lastUpdate': DateTime.now(),
       'connectionStatus': 'Disconnected',

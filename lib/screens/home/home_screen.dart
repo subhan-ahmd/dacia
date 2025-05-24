@@ -84,7 +84,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 '${obd2Data['voltage']?.toStringAsFixed(1)}V'),
             _buildDataCard(
                 'Speed', '${obd2Data['speed']?.toStringAsFixed(1)} km/h'),
+            _buildDataCard('Battery Temperature',
+                '${obd2Data['temperature']?.toStringAsFixed(1)}°C'),
+            _buildDataCard('Battery Current',
+                '${obd2Data['current']?.toStringAsFixed(1)}A'),
             _buildDataCard('Hex Data', '${obd2Data['raw']}'),
+            _buildHexDataCard('Raw Data', obd2Data['raw']),
             if (obd2Data['lastUpdate'] != null)
               Card(
                 margin: const EdgeInsets.all(8.0),
@@ -104,6 +109,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       child: ListTile(
         title: Text(title),
         trailing: Text(value),
+      ),
+    );
+  }
+
+  Widget _buildHexDataCard(String title, String? hexData) {
+    if (hexData == null || hexData.isEmpty) {
+      return _buildDataCard(title, 'No data');
+    }
+
+    String decodedValue = '';
+    try {
+      // Convert hex to bytes
+      List<int> bytes = [];
+      for (int i = 0; i < hexData.length; i += 2) {
+        if (i + 1 < hexData.length) {
+          bytes.add(int.parse(hexData.substring(i, i + 2), radix: 16));
+        }
+      }
+
+      // Try to decode as ASCII string
+      String asciiString = String.fromCharCodes(bytes);
+      if (asciiString.contains(RegExp(r'[A-Za-z0-9\s]'))) {
+        decodedValue = asciiString;
+      } else {
+        // If not readable ASCII, show as decimal values
+        decodedValue = bytes.map((b) => b.toString()).join(', ');
+      }
+    } catch (e) {
+      decodedValue = 'Error decoding: $e';
+    }
+
+    return Card(
+      margin: const EdgeInsets.all(8.0),
+      child: ListTile(
+        title: Text(title),
+        subtitle: Text('Decoded: $decodedValue'),
+        trailing: Text('Hex: $hexData'),
       ),
     );
   }

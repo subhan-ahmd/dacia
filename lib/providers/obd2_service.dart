@@ -1,4 +1,3 @@
-// lib/providers/obd2_service_provider.dart
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -108,7 +107,7 @@ class OBD2Service extends _$OBD2Service {
     }
 
     try {
-      await _sendCommand('01$pid'); // Mode 01 is for current data
+      await _sendCommand(pid); // Send the PID directly without mode prefix
     } catch (e) {
       print('Error requesting data: $e');
       ref.read(oBD2DataProvider.notifier).setError('Failed to request data: $e');
@@ -152,10 +151,12 @@ class OBD2Service extends _$OBD2Service {
       if (!_isInitialized) return;
 
       try {
-        // Request common data points
-        await requestData('0D'); // Speed
-        await requestData('2F'); // Fuel Level
-        await requestData('42'); // Control Module Voltage
+        // Request Spring-specific data points
+        await requestData('229002'); // Battery SoC
+        await requestData('229005'); // Battery Voltage
+        await requestData('222003'); // Vehicle Speed
+        await requestData('229012'); // Battery Temperature
+        await requestData('22900D'); // Battery Current
       } catch (e) {
         print('Error in periodic data request: $e');
         ref.read(oBD2DataProvider.notifier).setError('Periodic request error: $e');
@@ -186,23 +187,22 @@ class OBD2Service extends _$OBD2Service {
         return parsedData;
       }
 
-      // Parse based on the first byte (mode)
-      if (hexData.startsWith('41')) {
-        // Mode 01 response
-        String pid = hexData.substring(2, 4);
-        String value = hexData.substring(4);
-
-        switch (pid) {
-          case '0D': // Speed
-            parsedData['speed'] = _parseSpeed(value);
-            break;
-          case '2F': // Fuel Level
-            parsedData['soc'] = _parseSoC(value);
-            break;
-          case '42': // Control Module Voltage
-            parsedData['voltage'] = _parseVoltage(value);
-            break;
-        }
+      // Parse based on the PID
+      if (hexData.contains('229002')) {
+        // Battery SoC
+        parsedData['soc'] = _parseSoC(hexData);
+      } else if (hexData.contains('229005')) {
+        // Battery Voltage
+        parsedData['voltage'] = _parseVoltage(hexData);
+      } else if (hexData.contains('222003')) {
+        // Vehicle Speed
+        parsedData['speed'] = _parseSpeed(hexData);
+      } else if (hexData.contains('229012')) {
+        // Battery Temperature
+        parsedData['temperature'] = _parseTemperature(hexData);
+      } else if (hexData.contains('22900D')) {
+        // Battery Current
+        parsedData['current'] = _parseCurrent(hexData);
       }
 
       return parsedData;
@@ -216,20 +216,38 @@ class OBD2Service extends _$OBD2Service {
   // Helper methods to parse specific data types
   double _parseSoC(String hexData) {
     if (hexData.isEmpty) return 0.0;
-    int value = int.parse(hexData, radix: 16);
-    return value / 2.55; // Convert to percentage (0-100)
+    // Extract the value after the PID
+    String value = hexData.split('229002')[1].trim();
+    int rawValue = int.parse(value, radix: 16);
+    return rawValue * 0.01; // Convert to percentage (0-100)
   }
 
   double _parseVoltage(String hexData) {
     if (hexData.isEmpty) return 0.0;
-    int value = int.parse(hexData, radix: 16);
-    return value / 1000.0; // Convert to volts
+    String value = hexData.split('229005')[1].trim();
+    int rawValue = int.parse(value, radix: 16);
+    return rawValue * 0.1; // Convert to volts
   }
 
   double _parseSpeed(String hexData) {
     if (hexData.isEmpty) return 0.0;
-    int value = int.parse(hexData, radix: 16);
-    return value.toDouble(); // Speed in km/h
+    String value = hexData.split('222003')[1].trim();
+    int rawValue = int.parse(value, radix: 16);
+    return rawValue * 0.01; // Convert to km/h
+  }
+
+  double _parseTemperature(String hexData) {
+    if (hexData.isEmpty) return 0.0;
+    String value = hexData.split('229012')[1].trim();
+    int rawValue = int.parse(value, radix: 16);
+    return rawValue * 0.0625; // Convert to °C
+  }
+
+  double _parseCurrent(String hexData) {
+    if (hexData.isEmpty) return 0.0;
+    String value = hexData.split('22900D')[1].trim();
+    int rawValue = int.parse(value, radix: 16);
+    return rawValue * 0.025; // Convert to amperes
   }
 
   @override
@@ -237,6 +255,5 @@ class OBD2Service extends _$OBD2Service {
     _subscription?.cancel();
     _dataRequestTimer?.cancel();
     ref.read(oBD2DataProvider.notifier).setConnectionStatus('Disconnected');
-
   }
 }
