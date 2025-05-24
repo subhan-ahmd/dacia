@@ -43,6 +43,12 @@ class OBD2Service extends _$OBD2Service {
   static const String PID_BATTERY_TEMP = '222001';    // Battery Rack temperature (scale: 1 °C, offset: 40)
   static const String PID_BATTERY_CURRENT = '22900D'; // Instant Current of Battery (scale: 0.025 A, offset: 48000)
 
+  // Response PIDs
+  static const String RESP_BATTERY_VOLTAGE = '629005'; // Response for Pack Voltage
+  static const String RESP_VEHICLE_SPEED = '622003';   // Response for Vehicle speed
+  static const String RESP_BATTERY_TEMP = '622001';    // Response for Battery Rack temperature
+  static const String RESP_BATTERY_CURRENT = '62900D'; // Response for Instant Current of Battery
+
   @override
   void build() {}
 
@@ -192,17 +198,17 @@ class OBD2Service extends _$OBD2Service {
         return parsedData;
       }
 
-      // Parse based on the PID
-      if (hexData.contains(PID_BATTERY_VOLTAGE)) {
+      // Parse based on the response PID
+      if (hexData.contains(RESP_BATTERY_VOLTAGE)) {
         // Battery Voltage
         parsedData['voltage'] = _parseVoltage(hexData);
-      } else if (hexData.contains(PID_VEHICLE_SPEED)) {
+      } else if (hexData.contains(RESP_VEHICLE_SPEED)) {
         // Vehicle Speed
         parsedData['speed'] = _parseSpeed(hexData);
-      } else if (hexData.contains(PID_BATTERY_TEMP)) {
+      } else if (hexData.contains(RESP_BATTERY_TEMP)) {
         // Battery Temperature
         parsedData['temperature'] = _parseTemperature(hexData);
-      } else if (hexData.contains(PID_BATTERY_CURRENT)) {
+      } else if (hexData.contains(RESP_BATTERY_CURRENT)) {
         // Battery Current
         parsedData['current'] = _parseCurrent(hexData);
       }
@@ -218,29 +224,29 @@ class OBD2Service extends _$OBD2Service {
   // Helper methods to parse specific data types
   double _parseVoltage(String hexData) {
     if (hexData.isEmpty) return 0.0;
-    // Extract the value after the PID
-    String value = hexData.split(PID_BATTERY_VOLTAGE)[1].trim();
+    // Extract the value after the response PID
+    String value = hexData.split(RESP_BATTERY_VOLTAGE)[1].trim();
     int rawValue = int.parse(value, radix: 16);
     return rawValue * 0.1; // Scale: 0.1 V
   }
 
   double _parseSpeed(String hexData) {
     if (hexData.isEmpty) return 0.0;
-    String value = hexData.split(PID_VEHICLE_SPEED)[1].trim();
+    String value = hexData.split(RESP_VEHICLE_SPEED)[1].trim();
     int rawValue = int.parse(value, radix: 16);
     return rawValue * 0.01; // Scale: 0.01 km/h
   }
 
   double _parseTemperature(String hexData) {
     if (hexData.isEmpty) return 0.0;
-    String value = hexData.split(PID_BATTERY_TEMP)[1].trim();
+    String value = hexData.split(RESP_BATTERY_TEMP)[1].trim();
     int rawValue = int.parse(value, radix: 16);
     return rawValue - 40; // Scale: 1 °C, offset: 40
   }
 
   double _parseCurrent(String hexData) {
     if (hexData.isEmpty) return 0.0;
-    String value = hexData.split(PID_BATTERY_CURRENT)[1].trim();
+    String value = hexData.split(RESP_BATTERY_CURRENT)[1].trim();
     int rawValue = int.parse(value, radix: 16);
     return (rawValue - 48000) * 0.025; // Scale: 0.025 A, offset: 48000
   }
