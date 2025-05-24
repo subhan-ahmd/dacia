@@ -7,7 +7,6 @@ class OBD2Data extends _$OBD2Data {
   @override
   Map<String, dynamic> build() {
     return {
-      'soc': 0.0,
       'voltage': 0.0,
       'speed': 0.0,
       'temperature': 0.0,

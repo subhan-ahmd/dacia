@@ -78,8 +78,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   title: Text('Error: ${obd2Data['error']}'),
                 ),
               ),
-            _buildDataCard(
-                'Battery SoC', '${obd2Data['soc']?.toStringAsFixed(1)}%'),
             _buildDataCard('Battery Voltage',
                 '${obd2Data['voltage']?.toStringAsFixed(1)}V'),
             _buildDataCard(

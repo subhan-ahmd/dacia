@@ -37,6 +37,12 @@ class OBD2Service extends _$OBD2Service {
   late final String serviceUuid = "e7810a71-73ae-499d-8c15-faa9aef0c3f2";
   late final String characteristicUuid = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f";
 
+  // PIDs for data requests
+  static const String PID_BATTERY_VOLTAGE = '229005'; // Pack Voltage CAN value (scale: 0.1 V)
+  static const String PID_VEHICLE_SPEED = '222003';   // Vehicle speed (scale: 0.01 km/h)
+  static const String PID_BATTERY_TEMP = '222001';    // Battery Rack temperature (scale: 1 °C, offset: 40)
+  static const String PID_BATTERY_CURRENT = '22900D'; // Instant Current of Battery (scale: 0.025 A, offset: 48000)
+
   @override
   void build() {}
 
@@ -107,7 +113,7 @@ class OBD2Service extends _$OBD2Service {
     }
 
     try {
-      await _sendCommand(pid); // Send the PID directly without mode prefix
+      await _sendCommand('22$pid'); // Add mode prefix for Spring protocol
     } catch (e) {
       print('Error requesting data: $e');
       ref.read(oBD2DataProvider.notifier).setError('Failed to request data: $e');
@@ -152,11 +158,10 @@ class OBD2Service extends _$OBD2Service {
 
       try {
         // Request Spring-specific data points
-        await requestData('229002'); // Battery SoC
-        await requestData('229005'); // Battery Voltage
-        await requestData('222003'); // Vehicle Speed
-        await requestData('229012'); // Battery Temperature
-        await requestData('22900D'); // Battery Current
+        await requestData(PID_BATTERY_VOLTAGE); // Battery Voltage
+        await requestData(PID_VEHICLE_SPEED);   // Vehicle Speed
+        await requestData(PID_BATTERY_TEMP);    // Battery Temperature
+        await requestData(PID_BATTERY_CURRENT); // Battery Current
       } catch (e) {
         print('Error in periodic data request: $e');
         ref.read(oBD2DataProvider.notifier).setError('Periodic request error: $e');
@@ -188,19 +193,16 @@ class OBD2Service extends _$OBD2Service {
       }
 
       // Parse based on the PID
-      if (hexData.contains('229002')) {
-        // Battery SoC
-        parsedData['soc'] = _parseSoC(hexData);
-      } else if (hexData.contains('229005')) {
+      if (hexData.contains(PID_BATTERY_VOLTAGE)) {
         // Battery Voltage
         parsedData['voltage'] = _parseVoltage(hexData);
-      } else if (hexData.contains('222003')) {
+      } else if (hexData.contains(PID_VEHICLE_SPEED)) {
         // Vehicle Speed
         parsedData['speed'] = _parseSpeed(hexData);
-      } else if (hexData.contains('229012')) {
+      } else if (hexData.contains(PID_BATTERY_TEMP)) {
         // Battery Temperature
         parsedData['temperature'] = _parseTemperature(hexData);
-      } else if (hexData.contains('22900D')) {
+      } else if (hexData.contains(PID_BATTERY_CURRENT)) {
         // Battery Current
         parsedData['current'] = _parseCurrent(hexData);
       }
@@ -214,40 +216,33 @@ class OBD2Service extends _$OBD2Service {
   }
 
   // Helper methods to parse specific data types
-  double _parseSoC(String hexData) {
-    if (hexData.isEmpty) return 0.0;
-    // Extract the value after the PID
-    String value = hexData.split('229002')[1].trim();
-    int rawValue = int.parse(value, radix: 16);
-    return rawValue * 0.01; // Convert to percentage (0-100)
-  }
-
   double _parseVoltage(String hexData) {
     if (hexData.isEmpty) return 0.0;
-    String value = hexData.split('229005')[1].trim();
+    // Extract the value after the PID
+    String value = hexData.split(PID_BATTERY_VOLTAGE)[1].trim();
     int rawValue = int.parse(value, radix: 16);
-    return rawValue * 0.1; // Convert to volts
+    return rawValue * 0.1; // Scale: 0.1 V
   }
 
   double _parseSpeed(String hexData) {
     if (hexData.isEmpty) return 0.0;
-    String value = hexData.split('222003')[1].trim();
+    String value = hexData.split(PID_VEHICLE_SPEED)[1].trim();
     int rawValue = int.parse(value, radix: 16);
-    return rawValue * 0.01; // Convert to km/h
+    return rawValue * 0.01; // Scale: 0.01 km/h
   }
 
   double _parseTemperature(String hexData) {
     if (hexData.isEmpty) return 0.0;
-    String value = hexData.split('229012')[1].trim();
+    String value = hexData.split(PID_BATTERY_TEMP)[1].trim();
     int rawValue = int.parse(value, radix: 16);
-    return rawValue * 0.0625; // Convert to °C
+    return rawValue - 40; // Scale: 1 °C, offset: 40
   }
 
   double _parseCurrent(String hexData) {
     if (hexData.isEmpty) return 0.0;
-    String value = hexData.split('22900D')[1].trim();
+    String value = hexData.split(PID_BATTERY_CURRENT)[1].trim();
     int rawValue = int.parse(value, radix: 16);
-    return rawValue * 0.025; // Convert to amperes
+    return (rawValue - 48000) * 0.025; // Scale: 0.025 A, offset: 48000
   }
 
   @override
