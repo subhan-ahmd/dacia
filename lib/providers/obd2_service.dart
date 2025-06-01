@@ -110,7 +110,7 @@ class OBD2Service extends _$OBD2Service {
         value: Uint8List.fromList([0x01, 0x00]), // Enable notifications
       );
 
-      // Send initialization commands
+      // Send initialization commands with appropriate delays
       await _sendCommandAndWait('ate0', 200); // No echo
       await _sendCommandAndWait('ats0', 200); // No spaces
       await _sendCommandAndWait('atsp6', 200); // CAN 500K 11 bit
@@ -187,6 +187,18 @@ class OBD2Service extends _$OBD2Service {
       // Check for error responses
       if (response.contains('ERROR') || response.contains('?')) {
         throw Exception('Device error: $response');
+      }
+
+      // Add appropriate delay based on command type
+      if (command.startsWith('atsp')) {
+        // CAN parameter setting needs longer delay
+        await Future.delayed(const Duration(milliseconds: 200));
+      } else if (command.startsWith('22') || command.startsWith('23')) {
+        // Data requests need longer delay
+        await Future.delayed(const Duration(milliseconds: 500));
+      } else {
+        // Regular commands
+        await Future.delayed(const Duration(milliseconds: 100));
       }
 
       return response;
