@@ -360,8 +360,10 @@ class OBD2Service extends _$OBD2Service {
 
   // Request specific data from the device
   Future<void> requestData(String pid) async {
+    // Don't try to initialize if already initialized
     if (!_isInitialized) {
-      await initializeDevice();
+      print('Device not initialized, skipping data request');
+      return;
     }
 
     try {
@@ -404,8 +406,18 @@ class OBD2Service extends _$OBD2Service {
 
   // Subscribe to characteristic updates
   void subscribeToData() async {
+    // Only initialize if not already initialized
     if (!_isInitialized) {
-      await initializeDevice();
+      try {
+        await initializeDevice();
+        if (!_isInitialized) {
+          // If initialization failed, don't proceed with subscription
+          return;
+        }
+      } catch (e) {
+        print('Failed to initialize device: $e');
+        return;
+      }
     }
 
     _subscription = _ble
@@ -435,26 +447,31 @@ class OBD2Service extends _$OBD2Service {
           cancelOnError: false,
         );
 
-    // Start periodic data requests
-    _dataRequestTimer?.cancel();
-    _dataRequestTimer = Timer.periodic(const Duration(seconds: 1), (
-      timer,
-    ) async {
-      if (!_isInitialized) return;
+    // Start periodic data requests only if initialized
+    if (_isInitialized) {
+      _dataRequestTimer?.cancel();
+      _dataRequestTimer = Timer.periodic(const Duration(seconds: 1), (
+        timer,
+      ) async {
+        if (!_isInitialized) {
+          timer.cancel();
+          return;
+        }
 
-      try {
-        // Request Spring-specific data points
-        await requestData(PID_BATTERY_VOLTAGE); // Battery Voltage
-        await requestData(PID_VEHICLE_SPEED); // Vehicle Speed
-        await requestData(PID_BATTERY_TEMP); // Battery Temperature
-        await requestData(PID_BATTERY_CURRENT); // Battery Current
-      } catch (e) {
-        print('Error in periodic data request: $e');
-        ref
-            .read(oBD2DataProvider.notifier)
-            .setError('Periodic request error: $e');
-      }
-    });
+        try {
+          // Request Spring-specific data points
+          await requestData(PID_BATTERY_VOLTAGE); // Battery Voltage
+          await requestData(PID_VEHICLE_SPEED); // Vehicle Speed
+          await requestData(PID_BATTERY_TEMP); // Battery Temperature
+          await requestData(PID_BATTERY_CURRENT); // Battery Current
+        } catch (e) {
+          print('Error in periodic data request: $e');
+          ref
+              .read(oBD2DataProvider.notifier)
+              .setError('Periodic request error: $e');
+        }
+      });
+    }
   }
 
   // Parse the received data
