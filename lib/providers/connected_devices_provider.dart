@@ -65,8 +65,9 @@ class ConnectedDevices extends _$ConnectedDevices {
       } else {
         throw "Already Connected";
       }
-    } catch (e) {
+    } catch (e, s) {
       ToastManager.show("Error: $e");
+      print("Error: $e \n StackTrace: $s");
       _connection = null;
     }
 
