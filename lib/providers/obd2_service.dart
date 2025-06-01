@@ -79,16 +79,24 @@ class OBD2Service extends _$OBD2Service {
   static const String LBC_CAN_ID = '7bb'; // Lithium Battery Controller
 
   // Request PIDs
-  static const String PID_BATTERY_VOLTAGE = '229005'; // Pack Voltage CAN value (scale: 0.1 V)
-  static const String PID_VEHICLE_SPEED = '222003'; // Vehicle speed (scale: 0.01 km/h)
-  static const String PID_BATTERY_TEMP = '222001'; // Battery Rack temperature (scale: 1 °C, offset: 40)
-  static const String PID_BATTERY_CURRENT = '22900D'; // Instant Current of Battery (scale: 0.025 A, offset: 48000)
+  static const String PID_BATTERY_VOLTAGE =
+      '229005'; // Pack Voltage CAN value (scale: 0.1 V)
+  static const String PID_VEHICLE_SPEED =
+      '222003'; // Vehicle speed (scale: 0.01 km/h)
+  static const String PID_BATTERY_TEMP =
+      '222001'; // Battery Rack temperature (scale: 1 °C, offset: 40)
+  static const String PID_BATTERY_CURRENT =
+      '22900D'; // Instant Current of Battery (scale: 0.025 A, offset: 48000)
 
   // Response PIDs
-  static const String RESP_BATTERY_VOLTAGE = '629005'; // Response for battery voltage
-  static const String RESP_VEHICLE_SPEED = '622003'; // Response for vehicle speed
-  static const String RESP_BATTERY_TEMP = '622001'; // Response for battery temperature
-  static const String RESP_BATTERY_CURRENT = '62900D'; // Response for battery current
+  static const String RESP_BATTERY_VOLTAGE =
+      '629005'; // Response for battery voltage
+  static const String RESP_VEHICLE_SPEED =
+      '622003'; // Response for vehicle speed
+  static const String RESP_BATTERY_TEMP =
+      '622001'; // Response for battery temperature
+  static const String RESP_BATTERY_CURRENT =
+      '62900D'; // Response for battery current
 
   @override
   void build() {}
@@ -98,7 +106,9 @@ class OBD2Service extends _$OBD2Service {
     if (_isInitialized) return;
 
     try {
-      ref.read(oBD2DataProvider.notifier).setConnectionStatus('Initializing...');
+      ref
+          .read(oBD2DataProvider.notifier)
+          .setConnectionStatus('Initializing...');
 
       // Enable notifications
       await _ble.writeCharacteristicWithResponse(
@@ -117,7 +127,10 @@ class OBD2Service extends _$OBD2Service {
       await _sendCommandAndWait('atat1', 200); // Auto timing
       await _sendCommandAndWait('atcaf0', 200); // No formatting
       await _sendCommandAndWait('atfcsh77b', 200); // Flow control response ID
-      await _sendCommandAndWait('atfcsd300010', 200); // Flow control response data
+      await _sendCommandAndWait(
+        'atfcsd300010',
+        200,
+      ); // Flow control response data
       await _sendCommandAndWait('atfcsm1', 200); // Flow control mode 1
 
       _isInitialized = true;
@@ -127,7 +140,9 @@ class OBD2Service extends _$OBD2Service {
     } catch (e) {
       _isInitialized = false;
       ref.read(oBD2DataProvider.notifier).setConnectionStatus('Error');
-      ref.read(oBD2DataProvider.notifier).setError('Failed to initialize device: $e');
+      ref
+          .read(oBD2DataProvider.notifier)
+          .setError('Failed to initialize device: $e');
       print('Error initializing device: $e');
     }
   }
@@ -135,7 +150,18 @@ class OBD2Service extends _$OBD2Service {
   // Send command to the device with timeout
   Future<String> _sendCommandAndWait(String command, int timeout) async {
     try {
+      // For initial commands, use a longer timeout
+      final effectiveTimeout = command == 'ate0' ? 2000 : timeout;
+
       final commandBytes = Uint8List.fromList('$command\r'.codeUnits);
+
+      // Check if device is still connected before sending
+      if (!_isInitialized && command == 'ate0') {
+        await Future.delayed(
+          const Duration(milliseconds: 500),
+        ); // Give device time to stabilize
+      }
+
       await _ble.writeCharacteristicWithResponse(
         QualifiedCharacteristic(
           deviceId: ref.read(selectedDeviceProvider)!.id,
@@ -162,8 +188,11 @@ class OBD2Service extends _$OBD2Service {
           .listen(
             (data) {
               response = String.fromCharCodes(data).trim();
-              responseReceived = true;
-              timeoutTimer?.cancel();
+              if (response.isNotEmpty) {
+                // Only consider non-empty responses
+                responseReceived = true;
+                timeoutTimer?.cancel();
+              }
             },
             onError: (error) {
               print('Error receiving response: $error');
@@ -172,7 +201,7 @@ class OBD2Service extends _$OBD2Service {
           );
 
       // Set timeout
-      timeoutTimer = Timer(Duration(milliseconds: timeout), () {
+      timeoutTimer = Timer(Duration(milliseconds: effectiveTimeout), () {
         if (!responseReceived) {
           _subscription?.cancel();
           throw TimeoutException('Command timed out: $command');
@@ -181,7 +210,9 @@ class OBD2Service extends _$OBD2Service {
 
       // Wait for response or timeout
       while (!responseReceived) {
-        await Future.delayed(const Duration(milliseconds: 10));
+        await Future.delayed(
+          const Duration(milliseconds: 50),
+        ); // Increased delay between checks
       }
 
       // Check for error responses
@@ -191,20 +222,25 @@ class OBD2Service extends _$OBD2Service {
 
       // Add appropriate delay based on command type
       if (command.startsWith('atsp')) {
-        // CAN parameter setting needs longer delay
-        await Future.delayed(const Duration(milliseconds: 200));
+        await Future.delayed(
+          const Duration(milliseconds: 500),
+        ); // Increased delay for CAN parameter setting
       } else if (command.startsWith('22') || command.startsWith('23')) {
-        // Data requests need longer delay
-        await Future.delayed(const Duration(milliseconds: 500));
+        await Future.delayed(
+          const Duration(milliseconds: 1000),
+        ); // Increased delay for data requests
       } else {
-        // Regular commands
-        await Future.delayed(const Duration(milliseconds: 100));
+        await Future.delayed(
+          const Duration(milliseconds: 200),
+        ); // Increased delay for regular commands
       }
 
       return response;
     } catch (e) {
       print('Error sending command: $e');
-      ref.read(oBD2DataProvider.notifier).setError('Failed to send command: $e');
+      ref
+          .read(oBD2DataProvider.notifier)
+          .setError('Failed to send command: $e');
       rethrow;
     }
   }
@@ -242,7 +278,9 @@ class OBD2Service extends _$OBD2Service {
       await _sendCommandAndWait(pid, 500); // Longer timeout for data request
     } catch (e) {
       print('Error requesting data: $e');
-      ref.read(oBD2DataProvider.notifier).setError('Failed to request data: $e');
+      ref
+          .read(oBD2DataProvider.notifier)
+          .setError('Failed to request data: $e');
     }
   }
 
@@ -271,7 +309,9 @@ class OBD2Service extends _$OBD2Service {
           onError: (dynamic error) {
             print('Error in subscription: $error');
             _isInitialized = false;
-            ref.read(oBD2DataProvider.notifier).setError('Subscription error: $error');
+            ref
+                .read(oBD2DataProvider.notifier)
+                .setError('Subscription error: $error');
             ref.read(oBD2DataProvider.notifier).setConnectionStatus('Error');
           },
           cancelOnError: false,
@@ -279,7 +319,9 @@ class OBD2Service extends _$OBD2Service {
 
     // Start periodic data requests
     _dataRequestTimer?.cancel();
-    _dataRequestTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+    _dataRequestTimer = Timer.periodic(const Duration(seconds: 1), (
+      timer,
+    ) async {
       if (!_isInitialized) return;
 
       try {
@@ -290,7 +332,9 @@ class OBD2Service extends _$OBD2Service {
         await requestData(PID_BATTERY_CURRENT); // Battery Current
       } catch (e) {
         print('Error in periodic data request: $e');
-        ref.read(oBD2DataProvider.notifier).setError('Periodic request error: $e');
+        ref
+            .read(oBD2DataProvider.notifier)
+            .setError('Periodic request error: $e');
       }
     });
   }
@@ -301,10 +345,11 @@ class OBD2Service extends _$OBD2Service {
 
     try {
       // Convert data to hex string
-      String hexData = data
-          .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
-          .join()
-          .toUpperCase();
+      String hexData =
+          data
+              .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+              .join()
+              .toUpperCase();
 
       // Get current state to maintain other values
       final currentState = ref.read(oBD2DataProvider);
