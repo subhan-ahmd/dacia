@@ -66,7 +66,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   }
                 },
                 dropdownMenuEntries: devicesProvider.when(
-                  error: (error, stackTrace) => [],
+                  error: (error, stackTrace) {
+                    print("$error\n$stackTrace");
+                    return [];
+                  },
                   loading: () => [],
                   data: (devices) => [
                     ...devices.map((device) => DropdownMenuEntry(
