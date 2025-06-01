@@ -121,17 +121,18 @@ class OBD2Service extends _$OBD2Service {
       );
 
       // Send initialization commands with appropriate delays
-      await _sendCommandAndWait('ate0', 200); // No echo
-      await _sendCommandAndWait('ats0', 200); // No spaces
-      await _sendCommandAndWait('atsp6', 200); // CAN 500K 11 bit
-      await _sendCommandAndWait('atat1', 200); // Auto timing
-      await _sendCommandAndWait('atcaf0', 200); // No formatting
-      await _sendCommandAndWait('atfcsh77b', 200); // Flow control response ID
+      // Using uppercase commands as in Java implementation
+      await _sendCommandAndWait('ATE0', 2000); // No echo
+      await _sendCommandAndWait('ATS0', 200); // No spaces
+      await _sendCommandAndWait('ATSP6', 200); // CAN 500K 11 bit
+      await _sendCommandAndWait('ATAT1', 200); // Auto timing
+      await _sendCommandAndWait('ATCAF0', 200); // No formatting
+      await _sendCommandAndWait('ATFCSH77B', 200); // Flow control response ID
       await _sendCommandAndWait(
-        'atfcsd300010',
+        'ATFCSD300010',
         200,
       ); // Flow control response data
-      await _sendCommandAndWait('atfcsm1', 200); // Flow control mode 1
+      await _sendCommandAndWait('ATFCSM1', 200); // Flow control mode 1
 
       _isInitialized = true;
       ref.read(oBD2DataProvider.notifier).setConnectionStatus('Connected');
@@ -151,91 +152,104 @@ class OBD2Service extends _$OBD2Service {
   Future<String> _sendCommandAndWait(String command, int timeout) async {
     try {
       // For initial commands, use a longer timeout
-      final effectiveTimeout = command == 'ate0' ? 2000 : timeout;
+      final effectiveTimeout = command == 'ATE0' ? 2000 : timeout;
 
+      // Add proper line ending as in Java implementation
       final commandBytes = Uint8List.fromList('$command\r'.codeUnits);
 
       // Check if device is still connected before sending
-      if (!_isInitialized && command == 'ate0') {
+      if (!_isInitialized && command == 'ATE0') {
         await Future.delayed(
           const Duration(milliseconds: 500),
         ); // Give device time to stabilize
       }
 
-      await _ble.writeCharacteristicWithResponse(
-        QualifiedCharacteristic(
-          deviceId: ref.read(selectedDeviceProvider)!.id,
-          serviceId: Uuid.parse(serviceUuid),
-          characteristicId: Uuid.parse(characteristicUuid),
-        ),
-        value: commandBytes,
-      );
-
-      // Wait for response with timeout
-      String response = '';
-      bool responseReceived = false;
-      Timer? timeoutTimer;
-
-      _subscription?.cancel();
-      _subscription = _ble
-          .subscribeToCharacteristic(
+      // Try the command up to 2 times
+      for (int i = 0; i < 2; i++) {
+        try {
+          await _ble.writeCharacteristicWithResponse(
             QualifiedCharacteristic(
               deviceId: ref.read(selectedDeviceProvider)!.id,
               serviceId: Uuid.parse(serviceUuid),
               characteristicId: Uuid.parse(characteristicUuid),
             ),
-          )
-          .listen(
-            (data) {
-              response = String.fromCharCodes(data).trim();
-              if (response.isNotEmpty) {
-                // Only consider non-empty responses
-                responseReceived = true;
-                timeoutTimer?.cancel();
-              }
-            },
-            onError: (error) {
-              print('Error receiving response: $error');
-              timeoutTimer?.cancel();
-            },
+            value: commandBytes,
           );
 
-      // Set timeout
-      timeoutTimer = Timer(Duration(milliseconds: effectiveTimeout), () {
-        if (!responseReceived) {
+          // Wait for response with timeout
+          String response = '';
+          bool responseReceived = false;
+          Timer? timeoutTimer;
+
           _subscription?.cancel();
-          throw TimeoutException('Command timed out: $command');
+          _subscription = _ble
+              .subscribeToCharacteristic(
+                QualifiedCharacteristic(
+                  deviceId: ref.read(selectedDeviceProvider)!.id,
+                  serviceId: Uuid.parse(serviceUuid),
+                  characteristicId: Uuid.parse(characteristicUuid),
+                ),
+              )
+              .listen(
+                (data) {
+                  response = String.fromCharCodes(data).trim();
+                  if (response.isNotEmpty) {
+                    // Only consider non-empty responses
+                    responseReceived = true;
+                    timeoutTimer?.cancel();
+                  }
+                },
+                onError: (error) {
+                  print('Error receiving response: $error');
+                  timeoutTimer?.cancel();
+                },
+              );
+
+          // Set timeout
+          timeoutTimer = Timer(Duration(milliseconds: effectiveTimeout), () {
+            if (!responseReceived) {
+              _subscription?.cancel();
+              throw TimeoutException('Command timed out: $command');
+            }
+          });
+
+          // Wait for response or timeout
+          while (!responseReceived) {
+            await Future.delayed(const Duration(milliseconds: 50));
+          }
+
+          // Check for OK response as in Java implementation
+          if (response.toUpperCase().contains('OK')) {
+            // Add appropriate delay based on command type
+            if (command.startsWith('ATSP')) {
+              await Future.delayed(const Duration(milliseconds: 500));
+            } else if (command.startsWith('22') || command.startsWith('23')) {
+              await Future.delayed(const Duration(milliseconds: 1000));
+            } else {
+              await Future.delayed(const Duration(milliseconds: 200));
+            }
+            return response;
+          }
+
+          // If we get here, the response didn't contain OK
+          if (i == 1) {
+            // Last attempt
+            throw Exception('Device error: No OK response for $command');
+          }
+
+          // Wait before retry
+          await Future.delayed(const Duration(milliseconds: 100));
+        } catch (e) {
+          if (i == 1) {
+            // Last attempt
+            rethrow;
+          }
+          // Wait before retry
+          await Future.delayed(const Duration(milliseconds: 100));
         }
-      });
-
-      // Wait for response or timeout
-      while (!responseReceived) {
-        await Future.delayed(
-          const Duration(milliseconds: 50),
-        ); // Increased delay between checks
       }
 
-      // Check for error responses
-      if (response.contains('ERROR') || response.contains('?')) {
-        throw Exception('Device error: $response');
-      }
-
-      // Add appropriate delay based on command type
-      if (command.startsWith('atsp')) {
-        await Future.delayed(
-          const Duration(milliseconds: 500),
-        ); // Increased delay for CAN parameter setting
-      } else if (command.startsWith('22') || command.startsWith('23')) {
-        await Future.delayed(
-          const Duration(milliseconds: 1000),
-        ); // Increased delay for data requests
-      } else {
-        await Future.delayed(
-          const Duration(milliseconds: 200),
-        ); // Increased delay for regular commands
-      }
-
-      return response;
+      throw Exception('Failed to get valid response after retries');
     } catch (e) {
       print('Error sending command: $e');
       ref
