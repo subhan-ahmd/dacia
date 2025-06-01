@@ -212,7 +212,9 @@ class OBD2Service extends _$OBD2Service {
                 buffer.write(response);
                 dataReceived = true;
                 print('Flushing buffer data: $response');
-                ref.read(oBD2DataProvider.notifier).setBufferFlushData(response);
+                ref
+                    .read(oBD2DataProvider.notifier)
+                    .setBufferFlushData(response);
               }
             },
             onError: (error) {
@@ -237,9 +239,6 @@ class OBD2Service extends _$OBD2Service {
   // Send command to the device with timeout
   Future<String> _sendCommandAndWait(String command, int timeout) async {
     try {
-      // For initial commands, use a longer timeout
-      final effectiveTimeout = command == 'ATE0' ? 2000 : timeout;
-
       // Add proper line ending as in Java implementation
       final commandBytes = Uint8List.fromList('$command\r'.codeUnits);
 
@@ -258,7 +257,9 @@ class OBD2Service extends _$OBD2Service {
 
           // Update command tracking
           ref.read(oBD2DataProvider.notifier).setLastCommand(command);
-          ref.read(oBD2DataProvider.notifier).setLastCommandTimestamp(DateTime.now());
+          ref
+              .read(oBD2DataProvider.notifier)
+              .setLastCommandTimestamp(DateTime.now());
           ref.read(oBD2DataProvider.notifier).incrementCommandRetry();
 
           await _ble.writeCharacteristicWithResponse(
@@ -270,10 +271,9 @@ class OBD2Service extends _$OBD2Service {
             value: commandBytes,
           );
 
-          // Wait for response with timeout
+          // Wait for response with simple delay
           String response = '';
           bool responseReceived = false;
-          Timer? timeoutTimer;
 
           _subscription?.cancel();
           _subscription = _ble
@@ -290,28 +290,28 @@ class OBD2Service extends _$OBD2Service {
                   if (response.isNotEmpty) {
                     // Only consider non-empty responses
                     responseReceived = true;
-                    timeoutTimer?.cancel();
-                    ref.read(oBD2DataProvider.notifier).setLastResponse(response);
-                    ref.read(oBD2DataProvider.notifier).setLastResponseTimestamp(DateTime.now());
+                    ref
+                        .read(oBD2DataProvider.notifier)
+                        .setLastResponse(response);
+                    ref
+                        .read(oBD2DataProvider.notifier)
+                        .setLastResponseTimestamp(DateTime.now());
                   }
                 },
                 onError: (error) {
                   print('Error receiving response: $error');
-                  timeoutTimer?.cancel();
                 },
               );
 
-          // Set timeout
-          timeoutTimer = Timer(Duration(milliseconds: effectiveTimeout), () {
-            if (!responseReceived) {
-              _subscription?.cancel();
-              throw TimeoutException('Command timed out: $command');
-            }
-          });
-
-          // Wait for response or timeout
-          while (!responseReceived) {
+          // Wait for response with timeout
+          int waitTime = 0;
+          while (!responseReceived && waitTime < timeout) {
             await Future.delayed(const Duration(milliseconds: 50));
+            waitTime += 50;
+          }
+
+          if (!responseReceived) {
+            throw TimeoutException('Command timed out: $command');
           }
 
           // Check for OK response as in Java implementation
