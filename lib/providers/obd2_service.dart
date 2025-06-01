@@ -303,55 +303,58 @@ class OBD2Service extends _$OBD2Service {
                 },
               );
 
-          // Wait for response with timeout
+          // Wait for response with extended timeout
           int waitTime = 0;
-          while (!responseReceived && waitTime < timeout) {
-            await Future.delayed(const Duration(milliseconds: 50));
-            waitTime += 50;
+          int maxWaitTime = timeout * 2; // Double the timeout for more patience
+          while (!responseReceived && waitTime < maxWaitTime) {
+            await Future.delayed(
+              const Duration(milliseconds: 100),
+            ); // Increased delay between checks
+            waitTime += 100;
           }
 
-          if (!responseReceived) {
-            throw TimeoutException('Command timed out: $command');
-          }
-
-          // Check for OK response as in Java implementation
-          if (response.toUpperCase().contains('OK')) {
-            // Add appropriate delay based on command type
-            if (command.startsWith('ATSP')) {
-              await Future.delayed(const Duration(milliseconds: 500));
-            } else if (command.startsWith('22') || command.startsWith('23')) {
-              await Future.delayed(const Duration(milliseconds: 1000));
-            } else {
-              await Future.delayed(const Duration(milliseconds: 200));
+          // If we got a response, process it
+          if (responseReceived) {
+            // Check for OK response as in Java implementation
+            if (response.toUpperCase().contains('OK')) {
+              // Add appropriate delay based on command type
+              if (command.startsWith('ATSP')) {
+                await Future.delayed(const Duration(milliseconds: 500));
+              } else if (command.startsWith('22') || command.startsWith('23')) {
+                await Future.delayed(const Duration(milliseconds: 1000));
+              } else {
+                await Future.delayed(const Duration(milliseconds: 200));
+              }
+              return response;
             }
-            return response;
           }
 
-          // If we get here, the response didn't contain OK
+          // If we get here, either no response or no OK
           if (i == 1) {
-            // Last attempt
-            throw Exception('Device error: No OK response for $command');
+            // Last attempt - wait a bit longer before giving up
+            await Future.delayed(const Duration(milliseconds: 500));
+            return response; // Return whatever response we got, even if empty
           }
 
           // Wait before retry
-          await Future.delayed(const Duration(milliseconds: 100));
+          await Future.delayed(const Duration(milliseconds: 200));
         } catch (e) {
           if (i == 1) {
-            // Last attempt
-            rethrow;
+            // Last attempt - just return empty response
+            return '';
           }
           // Wait before retry
-          await Future.delayed(const Duration(milliseconds: 100));
+          await Future.delayed(const Duration(milliseconds: 200));
         }
       }
 
-      throw Exception('Failed to get valid response after retries');
+      return ''; // Return empty string if all attempts failed
     } catch (e) {
       print('Error sending command: $e');
       ref
           .read(oBD2DataProvider.notifier)
           .setError('Failed to send command: $e');
-      rethrow;
+      return ''; // Return empty string instead of throwing
     }
   }
 
