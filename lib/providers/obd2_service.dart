@@ -424,8 +424,69 @@ class OBD2Service extends _$OBD2Service {
         ref.read(oBD2DataProvider.notifier).setCurrentCanId(canId);
       }
 
-      // Then send the actual request (pid already includes the '22' service ID)
-      await _sendCommandAndWait(pid, 500); // Longer timeout for data request
+      // Handle ISO-TP request
+      final outgoingLength = pid.length;
+      String elmResponse = '';
+
+      if (outgoingLength <= 14) {
+        // Single frame (≤ 7 bytes)
+        final elmCommand = '0${(outgoingLength / 2).floor()}${pid}';
+        elmResponse = await _sendCommandAndWait(elmCommand, 500);
+      } else {
+        // Multi-frame
+        int startIndex = 0;
+        int endIndex = 12;
+        final elmCommand =
+            '1${(outgoingLength / 2).floor().toRadixString(16).padLeft(3, '0')}${pid.substring(startIndex, endIndex)}';
+        String elmFlowResponse = await _sendCommandAndWait(elmCommand, 500);
+
+        startIndex = endIndex;
+        if (startIndex > outgoingLength) startIndex = outgoingLength;
+        endIndex += 14;
+        if (endIndex > outgoingLength) endIndex = outgoingLength;
+
+        int next = 1;
+        while (startIndex < outgoingLength) {
+          final elmCommand =
+              '2${next.toRadixString(16)}${pid.substring(startIndex, endIndex)}';
+
+          if (elmFlowResponse.startsWith('3000')) {
+            // Send all data without further flow control
+            elmResponse = await _sendCommandAndWait(elmCommand, 500);
+          } else if (elmFlowResponse.startsWith('30')) {
+            // Wait for flow control response
+            elmFlowResponse = await _sendCommandAndWait(elmCommand, 500);
+            elmResponse = elmFlowResponse;
+          } else {
+            print('ISOTP tx flow Error: $elmFlowResponse');
+            ref
+                .read(oBD2DataProvider.notifier)
+                .setError('ISOTP tx flow Error: $elmFlowResponse');
+            return;
+          }
+
+          startIndex = endIndex;
+          if (startIndex > outgoingLength) startIndex = outgoingLength;
+          endIndex += 14;
+          if (endIndex > outgoingLength) endIndex = outgoingLength;
+          if (next == 15)
+            next = 0;
+          else
+            next++;
+        }
+      }
+
+      // Process response
+      elmResponse = elmResponse.trim();
+      if (elmResponse.startsWith('>')) elmResponse = elmResponse.substring(1);
+
+      if (elmResponse == 'CAN ERROR') {
+        ref.read(oBD2DataProvider.notifier).setError('Can Error');
+      } else if (elmResponse == '?') {
+        ref.read(oBD2DataProvider.notifier).setError('Unknown command');
+      } else if (elmResponse.isEmpty) {
+        ref.read(oBD2DataProvider.notifier).setError('Empty result');
+      }
     } catch (e) {
       print('Error requesting data: $e');
       ref

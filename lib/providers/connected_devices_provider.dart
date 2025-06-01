@@ -3,6 +3,7 @@ import 'package:dacia/providers/loading_provider.dart';
 import 'package:dacia/providers/obd2_service.dart';
 import 'package:dacia/providers/selected_device_provider.dart';
 import 'package:dacia/utils/toast_manager.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -113,7 +114,8 @@ class ConnectedDevices extends _$ConnectedDevices {
         print("success");
         ref.read(oBD2ServiceProvider.notifier).subscribeToData();
       }
-    } catch (e) {
+    } catch (e, s) {
+      debugPrint("$e\n$s");
       ToastManager.show("Error: $e");
     }
     if (ref.read(connectedDevicesProvider.notifier).isDeviceConnected()) {

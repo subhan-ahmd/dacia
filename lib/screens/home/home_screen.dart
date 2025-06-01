@@ -172,7 +172,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         // If not readable ASCII, show as decimal values
         decodedValue = bytes.map((b) => b.toString()).join(', ');
       }
-    } catch (e) {
+    } catch (e, s) {
+      debugPrint("$e\n$s");
       decodedValue = 'Error decoding: $e';
     }
 
