@@ -6,7 +6,7 @@ part of 'obd2_data.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$oBD2DataHash() => r'426f90f16fa5ba7dd1f7bf36c2d0c88779577f0e';
+String _$oBD2DataHash() => r'bacbd6138462b3388ef07c326874f4ce2e144be8';
 
 /// See also [OBD2Data].
 @ProviderFor(OBD2Data)

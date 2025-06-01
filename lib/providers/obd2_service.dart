@@ -1,118 +1,169 @@
 import 'dart:convert';
 import 'dart:typed_data';
-
+import 'dart:async';
 import 'package:dacia/providers/obd2_data.dart';
 import 'package:dacia/providers/selected_device_provider.dart';
-import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
-import 'dart:async';
+import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:flutter/material.dart';
 
 part 'obd2_service.g.dart';
 
-void printPrettyJson(dynamic jsonData) {
-  try {
-    final String jsonString =
-        jsonData is String ? jsonData : jsonEncode(jsonData);
-    final dynamic decodedJson = jsonDecode(jsonString);
-    final String prettyJson =
-        const JsonEncoder.withIndent('  ').convert(decodedJson);
-    debugPrint('┌─────────── JSON ───────────┐');
-    prettyJson.split('\n').forEach((line) => debugPrint('│ $line'));
-    debugPrint('└─────────────────────────────┘');
-  } catch (e) {
-    debugPrint('Error formatting JSON: $e');
-    debugPrint('Original data: $jsonData');
-  }
-}
-
 @riverpod
 class OBD2Service extends _$OBD2Service {
-  final FlutterReactiveBle _ble = FlutterReactiveBle();
+  BluetoothConnection? _connection;
   StreamSubscription? _subscription;
   bool _isInitialized = false;
   Timer? _dataRequestTimer;
+  final _buffer = StringBuffer();
 
-  // These UUIDs should be discovered from your device
-  late final String serviceUuid = "e7810a71-73ae-499d-8c15-faa9aef0c3f2";
-  late final String characteristicUuid = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f";
+  // Constants from CanZE
+  static const int DEFAULT_TIMEOUT = 500;
+  static const int MINIMUM_TIMEOUT = 100;
+  int _generalTimeout = 500;
 
-  // CAN IDs for different controllers
+  // End of Message characters
+  static const String EOM1 = '\r';
+  static const String EOM2 = '>';
+  static const String EOM3 = '?';
+
+  // CAN IDs (from CanZE)
   static const String EVC_CAN_ID = '7ec';  // Electric Vehicle Controller
   static const String LBC_CAN_ID = '7bb';  // Lithium Battery Controller
 
-  // Request PIDs
-  static const String PID_BATTERY_VOLTAGE = '229005'; // Pack Voltage CAN value (scale: 0.1 V)
-  static const String PID_VEHICLE_SPEED = '222003';   // Vehicle speed (scale: 0.01 km/h)
-  static const String PID_BATTERY_TEMP = '222001';    // Battery Rack temperature (scale: 1 °C, offset: 40)
-  static const String PID_BATTERY_CURRENT = '22900D'; // Instant Current of Battery (scale: 0.025 A, offset: 48000)
-
-  // Response PIDs
-  static const String RESP_BATTERY_VOLTAGE = '629005'; // Response for battery voltage
-  static const String RESP_VEHICLE_SPEED = '622003'; // Response for vehicle speed
-  static const String RESP_BATTERY_TEMP = '622001'; // Response for battery temperature
-  static const String RESP_BATTERY_CURRENT = '62900D'; // Response for battery current
+  // PIDs (from CanZE)
+  static const Map<String, String> PIDS = {
+    'batteryVoltage': '229005', // Pack Voltage
+    'vehicleSpeed': '222003',   // Vehicle speed
+    'batteryTemp': '222001',    // Battery Rack temperature
+    'batteryCurrent': '22900D', // Instant Current
+  };
 
   @override
   void build() {}
 
-  // Initialize the ELM327 device
+  // Initialize the ELM327 device (exact sequence from CanZE)
   Future<void> initializeDevice() async {
     if (_isInitialized) return;
 
     try {
       ref.read(oBD2DataProvider.notifier).setConnectionStatus('Initializing...');
 
-      // Enable notifications
-      await _ble.writeCharacteristicWithResponse(
-        QualifiedCharacteristic(
-          deviceId: ref.read(selectedDeviceProvider)!.id,
-          serviceId: Uuid.parse(serviceUuid),
-          characteristicId: Uuid.parse(characteristicUuid),
-        ),
-        value: Uint8List.fromList([0x01, 0x00]), // Enable notifications
-      );
-
-      // Send initialization commands
-      await _sendCommand('ATE0'); // No echo
-      await _sendCommand('ATS0'); // No spaces
-      await _sendCommand('ATSP6'); // CAN 500K 11 bit
-      await _sendCommand('ATAT1'); // Auto timing
-      await _sendCommand('ATCAF0'); // No formatting
-      await _sendCommand('ATFCSh77B'); // Flow control response ID
-      await _sendCommand('ATFCSD300010'); // Flow control response data
-      await _sendCommand('ATFCSM1'); // Flow control mode 1
+      // Exact same sequence as CanZE
+      await _sendCommand('ate0'); // No echo
+      await _sendCommand('ats0'); // No spaces
+      await _sendCommand('ath0'); // Headers off
+      await _sendCommand('atl0'); // Linefeeds off
+      await _sendCommand('atal'); // Allow long messages
+      await _sendCommand('atcaf0'); // No formatting
+      await _sendCommand('atfcsh77b'); // Flow control response ID
+      await _sendCommand('atfcsd300000'); // Flow control response data
+      await _sendCommand('atfcsm1'); // Flow control mode 1
+      await _sendCommand('atsp6'); // CAN 500K 11 bit
 
       _isInitialized = true;
       ref.read(oBD2DataProvider.notifier).setConnectionStatus('Connected');
       ref.read(oBD2DataProvider.notifier).setError(null);
-      print('Device initialized successfully');
     } catch (e) {
       _isInitialized = false;
       ref.read(oBD2DataProvider.notifier).setConnectionStatus('Error');
       ref.read(oBD2DataProvider.notifier).setError('Failed to initialize device: $e');
-      print('Error initializing device: $e');
     }
   }
 
-  // Send command to the device
-  Future<void> _sendCommand(String command) async {
+  // Send command to the device (based on CanZE's implementation)
+  Future<String> _sendCommand(String command) async {
+    if (_connection == null || !_connection!.isConnected) {
+      throw Exception('Not connected to device');
+    }
+
     try {
-      final commandBytes = Uint8List.fromList('$command\r'.codeUnits);
-      await _ble.writeCharacteristicWithResponse(
-        QualifiedCharacteristic(
-          deviceId: ref.read(selectedDeviceProvider)!.id,
-          serviceId: Uuid.parse(serviceUuid),
-          characteristicId: Uuid.parse(characteristicUuid),
-        ),
-        value: commandBytes,
-      );
+      _buffer.clear();
+      final completer = Completer<String>();
+      Timer? timeoutTimer;
+
+      // Set up timeout
+      timeoutTimer = Timer(Duration(milliseconds: _generalTimeout), () {
+        if (!completer.isCompleted) {
+          completer.completeError('Command timeout');
+        }
+      });
+
+      // Flush any existing data
+      await _flushWithTimeout(10, EOM2);
+
+      // Send command
+      _connection!.output.add(Uint8List.fromList('$command\r'.codeUnits));
+      await _connection!.output.allSent;
+
       // Wait for response
-      await Future.delayed(const Duration(milliseconds: 100));
+      _subscription = _connection!.input!.listen(
+        (data) {
+          final response = String.fromCharCodes(data);
+          _buffer.write(response);
+
+          if (response.contains(EOM1) || response.contains(EOM2) || response.contains(EOM3)) {
+            timeoutTimer?.cancel();
+            if (!completer.isCompleted) {
+              String finalResponse = _buffer.toString().trim();
+              // Remove the command echo and prompt
+              finalResponse = finalResponse.replaceAll('$command\r', '');
+              finalResponse = finalResponse.replaceAll(EOM2, '');
+              completer.complete(finalResponse);
+            }
+          }
+        },
+        onError: (error) {
+          timeoutTimer?.cancel();
+          if (!completer.isCompleted) {
+            completer.completeError(error);
+          }
+        },
+      );
+
+      return await completer.future;
     } catch (e) {
       print('Error sending command: $e');
       ref.read(oBD2DataProvider.notifier).setError('Failed to send command: $e');
       rethrow;
+    }
+  }
+
+  // Flush buffer with timeout (from CanZE)
+  Future<bool> _flushWithTimeout(int timeout, String eom) async {
+    if (_connection == null || !_connection!.isConnected) return false;
+
+    try {
+      final completer = Completer<bool>();
+      Timer? timeoutTimer;
+
+      timeoutTimer = Timer(Duration(milliseconds: timeout), () {
+        if (!completer.isCompleted) {
+          completer.complete(false);
+        }
+      });
+
+      _subscription = _connection!.input!.listen(
+        (data) {
+          final response = String.fromCharCodes(data);
+          if (response.contains(eom)) {
+            timeoutTimer?.cancel();
+            if (!completer.isCompleted) {
+              completer.complete(true);
+            }
+          }
+        },
+        onError: (error) {
+          timeoutTimer?.cancel();
+          if (!completer.isCompleted) {
+            completer.complete(false);
+          }
+        },
+      );
+
+      return await completer.future;
+    } catch (e) {
+      return false;
     }
   }
 
@@ -128,44 +179,26 @@ class OBD2Service extends _$OBD2Service {
 
       // First set the CAN ID using AT SH command
       await _sendCommand('AT SH $canId');
-      // Then send the actual request
-      await _sendCommand(pid);
+
+      // Then send the actual request and get the response
+      String response = await _sendCommand(pid);
+
+      // Parse and update the data
+      if (response.isNotEmpty) {
+        Map<String, dynamic> parsedData = parseData(response);
+        ref.read(oBD2DataProvider.notifier).updateData(parsedData);
+      }
     } catch (e) {
       print('Error requesting data: $e');
       ref.read(oBD2DataProvider.notifier).setError('Failed to request data: $e');
     }
   }
 
-  // Subscribe to characteristic updates
+  // Subscribe to data updates
   void subscribeToData() async {
     if (!_isInitialized) {
       await initializeDevice();
     }
-
-    _subscription = _ble
-        .subscribeToCharacteristic(
-          QualifiedCharacteristic(
-            deviceId: ref.read(selectedDeviceProvider)!.id,
-            serviceId: Uuid.parse(serviceUuid),
-            characteristicId: Uuid.parse(characteristicUuid),
-          ),
-        )
-        .listen(
-          (data) {
-            print('Raw data received: ${data.toList()}');
-            final parsedData = parseData(data);
-            if (parsedData.isNotEmpty) {
-              ref.read(oBD2DataProvider.notifier).updateData(parsedData);
-            }
-          },
-          onError: (dynamic error) {
-            print('Error in subscription: $error');
-            _isInitialized = false;
-            ref.read(oBD2DataProvider.notifier).setError('Subscription error: $error');
-            ref.read(oBD2DataProvider.notifier).setConnectionStatus('Error');
-          },
-          cancelOnError: false,
-        );
 
     // Start periodic data requests
     _dataRequestTimer?.cancel();
@@ -173,11 +206,10 @@ class OBD2Service extends _$OBD2Service {
       if (!_isInitialized) return;
 
       try {
-        // Request Spring-specific data points
-        await requestData(PID_BATTERY_VOLTAGE); // Battery Voltage
-        await requestData(PID_VEHICLE_SPEED);   // Vehicle Speed
-        await requestData(PID_BATTERY_TEMP);    // Battery Temperature
-        await requestData(PID_BATTERY_CURRENT); // Battery Current
+        // Request all PIDs
+        for (final pid in PIDS.values) {
+          await requestData(pid);
+        }
       } catch (e) {
         print('Error in periodic data request: $e');
         ref.read(oBD2DataProvider.notifier).setError('Periodic request error: $e');
@@ -185,43 +217,52 @@ class OBD2Service extends _$OBD2Service {
     });
   }
 
-  // Parse the received data
-  Map<String, dynamic> parseData(List<int> data) {
-    if (data.isEmpty) return {};
-
+  // Parse the received data (based on CanZE's data parsing)
+  Map<String, dynamic> parseData(String data) {
     try {
-      // Convert data to hex string
-      String hexData = data
-          .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
-          .join()
-          .toUpperCase();
-
       // Get current state to maintain other values
       final currentState = ref.read(oBD2DataProvider);
       Map<String, dynamic> parsedData = Map<String, dynamic>.from(currentState);
-      parsedData["raw"] = hexData;
+      parsedData["raw"] = data;
 
       // Check for error response
-      if (hexData.startsWith('7F')) {
-        print('Error response received: $hexData');
-        ref.read(oBD2DataProvider.notifier).setError('Device error: $hexData');
+      if (data.startsWith('7F') || data.contains('ERROR')) {
+        print('Error response received: $data');
+        ref.read(oBD2DataProvider.notifier).setError('Device error: $data');
         return parsedData;
       }
 
-      // Parse based on the response PID
-      if (hexData.contains(RESP_BATTERY_VOLTAGE)) {
-        // Battery Voltage
-        parsedData['voltage'] = _parseVoltage(hexData);
-      } else if (hexData.contains(RESP_VEHICLE_SPEED)) {
-        // Vehicle Speed
-        parsedData['speed'] = _parseSpeed(hexData);
-      } else if (hexData.contains(RESP_BATTERY_TEMP)) {
-        // Battery Temperature
-        parsedData['temperature'] = _parseTemperature(hexData);
-      } else if (hexData.contains(RESP_BATTERY_CURRENT)) {
-        // Battery Current
-        parsedData['current'] = _parseCurrent(hexData);
+      // Parse CAN message
+      final parts = data.split(' ');
+      if (parts.length < 2) return parsedData;
+
+      final canId = parts[0];
+      final pid = parts[1];
+      final value = parts.length > 2 ? parts[2] : '';
+
+      // Store CAN ID and PID in the data
+      parsedData['canId'] = canId;
+      parsedData['pid'] = pid;
+
+      // Parse based on PID
+      switch (pid) {
+        case '9005': // Battery Voltage
+          parsedData['voltage'] = _parseVoltage(value);
+          break;
+        case '2003': // Vehicle Speed
+          parsedData['speed'] = _parseSpeed(value);
+          break;
+        case '2001': // Battery Temperature
+          parsedData['temperature'] = _parseTemperature(value);
+          break;
+        case '900D': // Battery Current
+          parsedData['current'] = _parseCurrent(value);
+          break;
       }
+
+      // Update timestamp
+      parsedData['timestamp'] = DateTime.now().millisecondsSinceEpoch;
+      parsedData['lastUpdate'] = DateTime.now();
 
       return parsedData;
     } catch (e) {
@@ -231,32 +272,27 @@ class OBD2Service extends _$OBD2Service {
     }
   }
 
-  // Helper methods to parse specific data types
-  double _parseVoltage(String hexData) {
-    if (hexData.isEmpty) return 0.0;
-    // Extract the value after the response PID
-    String value = hexData.split(RESP_BATTERY_VOLTAGE)[1].trim();
+  // Helper methods to parse specific data types (from CanZE's implementation)
+  double _parseVoltage(String value) {
+    if (value.isEmpty) return 0.0;
     int rawValue = int.parse(value, radix: 16);
     return rawValue * 0.1; // Scale: 0.1 V
   }
 
-  double _parseSpeed(String hexData) {
-    if (hexData.isEmpty) return 0.0;
-    String value = hexData.split(RESP_VEHICLE_SPEED)[1].trim();
+  double _parseSpeed(String value) {
+    if (value.isEmpty) return 0.0;
     int rawValue = int.parse(value, radix: 16);
     return rawValue * 0.01; // Scale: 0.01 km/h
   }
 
-  double _parseTemperature(String hexData) {
-    if (hexData.isEmpty) return 0.0;
-    String value = hexData.split(RESP_BATTERY_TEMP)[1].trim();
+  double _parseTemperature(String value) {
+    if (value.isEmpty) return 0.0;
     int rawValue = int.parse(value, radix: 16);
     return rawValue - 40; // Scale: 1 °C, offset: 40
   }
 
-  double _parseCurrent(String hexData) {
-    if (hexData.isEmpty) return 0.0;
-    String value = hexData.split(RESP_BATTERY_CURRENT)[1].trim();
+  double _parseCurrent(String value) {
+    if (value.isEmpty) return 0.0;
     int rawValue = int.parse(value, radix: 16);
     return (rawValue - 48000) * 0.025; // Scale: 0.025 A, offset: 48000
   }
@@ -265,6 +301,7 @@ class OBD2Service extends _$OBD2Service {
   void dispose() {
     _subscription?.cancel();
     _dataRequestTimer?.cancel();
+    _connection?.close();
     ref.read(oBD2DataProvider.notifier).setConnectionStatus('Disconnected');
   }
 }

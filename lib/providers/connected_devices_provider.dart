@@ -3,64 +3,31 @@ import 'package:dacia/providers/loading_provider.dart';
 import 'package:dacia/providers/obd2_service.dart';
 import 'package:dacia/providers/selected_device_provider.dart';
 import 'package:dacia/utils/toast_manager.dart';
-import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'connected_devices_provider.g.dart';
 
 @riverpod
 class ConnectedDevices extends _$ConnectedDevices {
-  // static String deviceId =
-  //     // "DC:0D:30:DA:D9:C9"; // MARIO'S
-  //     "08:A6:F7:47:56:72"; //ESP32
-  final FlutterReactiveBle _ble = FlutterReactiveBle();
   final Set<String> _connectedDeviceIds = {};
-  StreamSubscription? _connectionSubscription;
-  final Map<String, StreamSubscription> _deviceConnections = {};
+  BluetoothConnection? _connection;
   bool isConnecting = false;
 
   @override
   FutureOr<Set<String>> build() {
-    _initialize();
-
-    ref.onDispose(() {
-      _connectionSubscription?.cancel();
-      for (final subscription in _deviceConnections.values) {
-        subscription.cancel();
-      }
-    });
-
     return _connectedDeviceIds;
   }
 
-  Future<void> _initialize() async {
-    _connectionSubscription =
-        _ble.connectedDeviceStream.listen((connectionStateUpdate) {
-      if (connectionStateUpdate.connectionState ==
-          DeviceConnectionState.connected) {
-        _connectedDeviceIds.add(connectionStateUpdate.deviceId);
-      } else if (connectionStateUpdate.connectionState ==
-          DeviceConnectionState.disconnected) {
-        _connectedDeviceIds.remove(connectionStateUpdate.deviceId);
-      }
-      state = AsyncData(Set<String>.from(_connectedDeviceIds));
-    });
+  bool isDeviceConnected({String? id}) {
+    final deviceId = id ?? ref.read(selectedDeviceProvider)?.address ?? "";
+    return _connection?.isConnected ?? false && _connectedDeviceIds.contains(deviceId);
   }
-
-  bool isDeviceConnected({String? id}) => _connectedDeviceIds.contains(id??(ref.read(selectedDeviceProvider)?.id??""));
 
   Set<String> get connectedDevices => _connectedDeviceIds;
 
-  void storeConnectionSubscription(
-    String deviceId,
-    StreamSubscription subscription,
-  ) {
-    _deviceConnections[deviceId]?.cancel();
-    _deviceConnections[deviceId] = subscription;
-  }
-
   Future<void> checkAndConnect() async {
-    if(ref.read(selectedDeviceProvider)!=null){
+    if (ref.read(selectedDeviceProvider) != null) {
       if (!isDeviceConnected()) {
         if (!isConnecting) {
           isConnecting = true;
@@ -72,68 +39,56 @@ class ConnectedDevices extends _$ConnectedDevices {
   }
 
   Future<void> connect() async {
-    ref.read(loadingProvider(ref.read(selectedDeviceProvider)?.id??"").notifier).toggle(true);
-    ToastManager.show("Connecting to ${ref.read(selectedDeviceProvider)?.id??""}");
+    final deviceAddress = ref.read(selectedDeviceProvider)?.address ?? "";
+    ref.read(loadingProvider(deviceAddress).notifier).toggle(true);
+    ToastManager.show("Connecting to $deviceAddress");
+
     try {
-      final completer = Completer<void>();
-      if (!ref.read(connectedDevicesProvider.notifier).isDeviceConnected()) {
-        final subscription = FlutterReactiveBle()
-            .connectToDevice(
-          id: ref.read(selectedDeviceProvider)?.id??"",
-          connectionTimeout: const Duration(seconds: 35),
-        )
-            .listen(
-          (connectionState) async {
-            if (connectionState.connectionState ==
-                DeviceConnectionState.connected) {
-              if (!completer.isCompleted) {
-                completer.complete();
-              }
-            }
-          },
-          onError: (error, stackTrace) {
-            if (!completer.isCompleted) {
-              completer.completeError(error);
-              throw error;
-            }
-          },
-        );
-        ref
-            .read(connectedDevicesProvider.notifier)
-            .storeConnectionSubscription(ref.read(selectedDeviceProvider)?.id??"", subscription);
-      } else {
-        if (!completer.isCompleted) {
-          completer.completeError("Already Connected");
+      if (!isDeviceConnected()) {
+        _connection = await BluetoothConnection.toAddress(deviceAddress);
+
+        // Listen for disconnection
+        _connection!.input!.listen((data) {
+          // Handle incoming data if needed
+        }).onDone(() {
+          _connectedDeviceIds.remove(deviceAddress);
+          state = AsyncData(Set<String>.from(_connectedDeviceIds));
+          _connection = null;
+        });
+
+        _connectedDeviceIds.add(deviceAddress);
+        state = AsyncData(Set<String>.from(_connectedDeviceIds));
+
+        if (isDeviceConnected()) {
+          ref.read(oBD2ServiceProvider.notifier).subscribeToData();
         }
+      } else {
         throw "Already Connected";
-      }
-      await completer.future;
-      print("connect");
-      if(isDeviceConnected()){
-        print("success");
-        ref.read(oBD2ServiceProvider.notifier).subscribeToData();
       }
     } catch (e) {
       ToastManager.show("Error: $e");
+      _connection = null;
     }
-    if (ref.read(connectedDevicesProvider.notifier).isDeviceConnected()) {
-      ToastManager.show("Connected to ${ref.read(selectedDeviceProvider)?.id??""}");
+
+    if (isDeviceConnected()) {
+      ToastManager.show("Connected to $deviceAddress");
     }
-    ref.read(loadingProvider(ref.read(selectedDeviceProvider)?.id??"").notifier).toggle(false);
+    ref.read(loadingProvider(deviceAddress).notifier).toggle(false);
   }
 
   Future<void> disconnect() async {
-    if(ref.read(selectedDeviceProvider)!=null){
-      _deviceConnections[ref.read(selectedDeviceProvider)?.id ?? ""]?.cancel();
-      _deviceConnections.remove(ref.read(selectedDeviceProvider)?.id ?? "");
+    if (ref.read(selectedDeviceProvider) != null) {
+      final deviceAddress = ref.read(selectedDeviceProvider)?.address ?? "";
 
-      if (_connectedDeviceIds
-          .contains(ref.read(selectedDeviceProvider)?.id ?? "")) {
-        _connectedDeviceIds.remove(ref.read(selectedDeviceProvider)?.id ?? "");
+      await _connection?.close();
+      _connection = null;
+
+      if (_connectedDeviceIds.contains(deviceAddress)) {
+        _connectedDeviceIds.remove(deviceAddress);
         state = AsyncData(Set<String>.from(_connectedDeviceIds));
       }
-      ToastManager.show(
-          "Disconnected from ${ref.read(selectedDeviceProvider)?.id ?? ""}");
+
+      ToastManager.show("Disconnected from $deviceAddress");
       ref.read(selectedDeviceProvider.notifier).clear();
     }
   }

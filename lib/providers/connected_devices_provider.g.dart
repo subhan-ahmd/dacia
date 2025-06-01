@@ -6,7 +6,7 @@ part of 'connected_devices_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$connectedDevicesHash() => r'eb9bf440db49259f1c09b8f59cdadbaeb887b755';
+String _$connectedDevicesHash() => r'640e8e9583c5c4fc101b42b4574f393e59a6c7b7';
 
 /// See also [ConnectedDevices].
 @ProviderFor(ConnectedDevices)

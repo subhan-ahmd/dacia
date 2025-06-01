@@ -1,13 +1,14 @@
-import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+
 part 'selected_device_provider.g.dart';
 
 @riverpod
 class SelectedDevice extends _$SelectedDevice {
   @override
-  DiscoveredDevice? build() => null;
+  BluetoothDevice? build() => null;
 
-  void select(DiscoveredDevice device) {
+  void select(BluetoothDevice device) {
     state = device;
   }
 

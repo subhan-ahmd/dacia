@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -7,22 +6,20 @@ class PermissionManager {
   static Future<bool> check() async {
     Map<Permission, PermissionStatus> statuses;
 
-    if (Platform.isAndroid) {
-      if (await _getAndroidVersion() >= 31) {
-        statuses = await [
-          Permission.bluetoothScan,
-          Permission.bluetoothConnect,
-        ].request();
-      } else {
-        statuses = await [
-          Permission.bluetooth,
-          Permission.location,
-        ].request();
-      }
-    } else if (Platform.isIOS) {
-      statuses = await [Permission.bluetooth].request();
+    if (await _getAndroidVersion() >= 31) {
+      // Android 12 (API level 31) and above
+      statuses = await [
+        Permission.bluetoothScan,
+        Permission.bluetoothConnect,
+        Permission.bluetoothAdvertise,
+        Permission.location,
+      ].request();
     } else {
-      return false;
+      // Android 11 (API level 30) and below
+      statuses = await [
+        Permission.bluetooth,
+        Permission.location,
+      ].request();
     }
 
     bool allGranted = !statuses.values.any(
@@ -37,10 +34,21 @@ class PermissionManager {
   }
 
   static Future<int> _getAndroidVersion() async {
-    if (!Platform.isAndroid) return 0;
-
     final deviceInfo = DeviceInfoPlugin();
     final androidInfo = await deviceInfo.androidInfo;
     return androidInfo.version.sdkInt;
+  }
+
+  // Helper method to check if all required permissions are granted
+  static Future<bool> arePermissionsGranted() async {
+    if (await _getAndroidVersion() >= 31) {
+      return await Permission.bluetoothScan.isGranted &&
+             await Permission.bluetoothConnect.isGranted &&
+             await Permission.bluetoothAdvertise.isGranted &&
+             await Permission.location.isGranted;
+    } else {
+      return await Permission.bluetooth.isGranted &&
+             await Permission.location.isGranted;
+    }
   }
 }
