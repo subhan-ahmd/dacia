@@ -84,6 +84,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 obd2Data['isInitialized'] ? 'Initialized' : 'Not Initialized'),
             _buildDataCard('CAN Mode', '${obd2Data['canMode']}'),
             _buildDataCard('Current CAN ID', '${obd2Data['currentCanId']}'),
+            _buildDataCard('Command Timeout', '${obd2Data['commandTimeout']}ms'),
+            _buildDataCard('Command Retry Count', '${obd2Data['commandRetryCount']}'),
             _buildDataCard('Battery Voltage',
                 '${obd2Data['voltage']?.toStringAsFixed(1)}V'),
             _buildDataCard(
@@ -94,6 +96,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 '${obd2Data['current']?.toStringAsFixed(1)}A'),
             _buildDataCard('Last Command', '${obd2Data['lastCommand']}'),
             _buildDataCard('Last Response', '${obd2Data['lastResponse']}'),
+            _buildDataCard('Buffer Flush Data', '${obd2Data['bufferFlushData']}'),
             _buildDataCard('Raw Hex Data', '${obd2Data['raw']}'),
             _buildHexDataCard('Decoded Data', obd2Data['raw']),
             if (obd2Data['lastUpdate'] != null)
@@ -101,6 +104,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 margin: const EdgeInsets.all(8.0),
                 child: ListTile(
                   title: Text('Last Update: ${obd2Data['lastUpdate']}'),
+                ),
+              ),
+            if (obd2Data['lastCommandTimestamp'] != null)
+              Card(
+                margin: const EdgeInsets.all(8.0),
+                child: ListTile(
+                  title: Text('Last Command Time: ${obd2Data['lastCommandTimestamp']}'),
+                ),
+              ),
+            if (obd2Data['lastResponseTimestamp'] != null)
+              Card(
+                margin: const EdgeInsets.all(8.0),
+                child: ListTile(
+                  title: Text('Last Response Time: ${obd2Data['lastResponseTimestamp']}'),
+                ),
+              ),
+            if (obd2Data['lastBufferFlush'] != null)
+              Card(
+                margin: const EdgeInsets.all(8.0),
+                child: ListTile(
+                  title: Text('Last Buffer Flush: ${obd2Data['lastBufferFlush']}'),
                 ),
               ),
           ],

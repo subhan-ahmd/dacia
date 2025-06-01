@@ -120,6 +120,9 @@ class OBD2Service extends _$OBD2Service {
         value: Uint8List.fromList([0x01, 0x00]), // Enable notifications
       );
 
+      // First, try to reset the device
+      await _resetDevice();
+
       // Send initialization commands with appropriate delays
       // Using uppercase commands as in Java implementation
       await _sendCommandAndWait('ATE0', 2000); // No echo
@@ -137,6 +140,7 @@ class OBD2Service extends _$OBD2Service {
       _isInitialized = true;
       ref.read(oBD2DataProvider.notifier).setConnectionStatus('Connected');
       ref.read(oBD2DataProvider.notifier).setError(null);
+      ref.read(oBD2DataProvider.notifier).setInitialized(true);
       print('Device initialized successfully');
     } catch (e) {
       _isInitialized = false;
@@ -144,7 +148,89 @@ class OBD2Service extends _$OBD2Service {
       ref
           .read(oBD2DataProvider.notifier)
           .setError('Failed to initialize device: $e');
+      ref.read(oBD2DataProvider.notifier).setInitialized(false);
       print('Error initializing device: $e');
+    }
+  }
+
+  // Reset the device before initialization
+  Future<void> _resetDevice() async {
+    try {
+      // Send ATZ to reset the device
+      await _ble.writeCharacteristicWithResponse(
+        QualifiedCharacteristic(
+          deviceId: ref.read(selectedDeviceProvider)!.id,
+          serviceId: Uuid.parse(serviceUuid),
+          characteristicId: Uuid.parse(characteristicUuid),
+        ),
+        value: Uint8List.fromList('ATZ\r'.codeUnits),
+      );
+
+      // Wait for device to reset
+      await Future.delayed(const Duration(seconds: 2));
+
+      // Clear any pending responses
+      await _flushResponseBuffer();
+
+      // Send ATD to get device info
+      await _ble.writeCharacteristicWithResponse(
+        QualifiedCharacteristic(
+          deviceId: ref.read(selectedDeviceProvider)!.id,
+          serviceId: Uuid.parse(serviceUuid),
+          characteristicId: Uuid.parse(characteristicUuid),
+        ),
+        value: Uint8List.fromList('ATD\r'.codeUnits),
+      );
+
+      // Wait for device info
+      await Future.delayed(const Duration(milliseconds: 500));
+    } catch (e) {
+      print('Error resetting device: $e');
+      // Continue with initialization even if reset fails
+    }
+  }
+
+  // Flush the response buffer
+  Future<void> _flushResponseBuffer() async {
+    try {
+      _subscription?.cancel();
+      StringBuffer buffer = StringBuffer();
+      bool dataReceived = false;
+
+      _subscription = _ble
+          .subscribeToCharacteristic(
+            QualifiedCharacteristic(
+              deviceId: ref.read(selectedDeviceProvider)!.id,
+              serviceId: Uuid.parse(serviceUuid),
+              characteristicId: Uuid.parse(characteristicUuid),
+            ),
+          )
+          .listen(
+            (data) {
+              String response = String.fromCharCodes(data).trim();
+              if (response.isNotEmpty) {
+                buffer.write(response);
+                dataReceived = true;
+                print('Flushing buffer data: $response');
+                ref.read(oBD2DataProvider.notifier).setBufferFlushData(response);
+              }
+            },
+            onError: (error) {
+              print('Error flushing buffer: $error');
+            },
+          );
+
+      // Wait a bit to clear any pending responses
+      await Future.delayed(const Duration(milliseconds: 200));
+
+      if (dataReceived) {
+        print('Buffer flush complete. Data received: ${buffer.toString()}');
+        ref.read(oBD2DataProvider.notifier).setLastBufferFlush(DateTime.now());
+      }
+
+      _subscription?.cancel();
+    } catch (e) {
+      print('Error flushing buffer: $e');
     }
   }
 
@@ -167,6 +253,14 @@ class OBD2Service extends _$OBD2Service {
       // Try the command up to 2 times
       for (int i = 0; i < 2; i++) {
         try {
+          // Clear any pending responses before sending new command
+          await _flushResponseBuffer();
+
+          // Update command tracking
+          ref.read(oBD2DataProvider.notifier).setLastCommand(command);
+          ref.read(oBD2DataProvider.notifier).setLastCommandTimestamp(DateTime.now());
+          ref.read(oBD2DataProvider.notifier).incrementCommandRetry();
+
           await _ble.writeCharacteristicWithResponse(
             QualifiedCharacteristic(
               deviceId: ref.read(selectedDeviceProvider)!.id,
@@ -197,6 +291,8 @@ class OBD2Service extends _$OBD2Service {
                     // Only consider non-empty responses
                     responseReceived = true;
                     timeoutTimer?.cancel();
+                    ref.read(oBD2DataProvider.notifier).setLastResponse(response);
+                    ref.read(oBD2DataProvider.notifier).setLastResponseTimestamp(DateTime.now());
                   }
                 },
                 onError: (error) {
@@ -273,10 +369,12 @@ class OBD2Service extends _$OBD2Service {
       // Check if we need to switch CAN mode
       if (formatter.isExtended) {
         await _sendCommandAndWait('atsp7', 200); // Switch to 29-bit mode
+        ref.read(oBD2DataProvider.notifier).setCanMode('29bit');
         // Set priority using AT CP
         await _sendCommandAndWait('atcp${formatter.getToIdHexMSB()}', 200);
       } else {
         await _sendCommandAndWait('atsp6', 200); // Switch to 11-bit mode
+        ref.read(oBD2DataProvider.notifier).setCanMode('11bit');
       }
 
       // Set header (where to send) - using LSB format
@@ -287,6 +385,9 @@ class OBD2Service extends _$OBD2Service {
 
       // Set flow control response ID - using standard format
       await _sendCommandAndWait('atfcsh${formatter.getToIdHex()}', 200);
+
+      // Update current CAN ID
+      ref.read(oBD2DataProvider.notifier).setCurrentCanId(canId);
 
       // Then send the actual request (pid already includes the '22' service ID)
       await _sendCommandAndWait(pid, 500); // Longer timeout for data request
