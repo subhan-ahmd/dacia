@@ -1,30 +1,13 @@
-import 'dart:convert';
 import 'dart:typed_data';
-
-import 'package:dacia/providers/obd2_data.dart';
-import 'package:dacia/providers/selected_device_provider.dart';
-import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:flutter/material.dart';
+
+import '../providers/obd2_data.dart';
+import '../providers/selected_device_provider.dart';
 
 part 'obd2_service.g.dart';
-
-void printPrettyJson(dynamic jsonData) {
-  try {
-    final String jsonString =
-        jsonData is String ? jsonData : jsonEncode(jsonData);
-    final dynamic decodedJson = jsonDecode(jsonString);
-    final String prettyJson =
-        const JsonEncoder.withIndent('  ').convert(decodedJson);
-    debugPrint('┌─────────── JSON ───────────┐');
-    prettyJson.split('\n').forEach((line) => debugPrint('│ $line'));
-    debugPrint('└─────────────────────────────┘');
-  } catch (e) {
-    debugPrint('Error formatting JSON: $e');
-    debugPrint('Original data: $jsonData');
-  }
-}
 
 @riverpod
 class OBD2Service extends _$OBD2Service {
@@ -49,8 +32,8 @@ class OBD2Service extends _$OBD2Service {
 
   // Response PIDs
   static const String RESP_BATTERY_VOLTAGE = '629005'; // Response for battery voltage
-  static const String RESP_VEHICLE_SPEED = '622003'; // Response for vehicle speed
-  static const String RESP_BATTERY_TEMP = '622001'; // Response for battery temperature
+  static const String RESP_VEHICLE_SPEED = '622003';   // Response for vehicle speed
+  static const String RESP_BATTERY_TEMP = '622001';    // Response for battery temperature
   static const String RESP_BATTERY_CURRENT = '62900D'; // Response for battery current
 
   @override
@@ -73,15 +56,25 @@ class OBD2Service extends _$OBD2Service {
         value: Uint8List.fromList([0x01, 0x00]), // Enable notifications
       );
 
-      // Send initialization commands
-      await _sendCommand('ATE0'); // No echo
-      await _sendCommand('ATS0'); // No spaces
-      await _sendCommand('ATSP6'); // CAN 500K 11 bit
-      await _sendCommand('ATAT1'); // Auto timing
-      await _sendCommand('ATCAF0'); // No formatting
-      await _sendCommand('ATFCSh77B'); // Flow control response ID
-      await _sendCommand('ATFCSD300010'); // Flow control response data
-      await _sendCommand('ATFCSM1'); // Flow control mode 1
+      // Send initialization commands with proper delays
+      await _sendCommandAndWait('ATZ', 2000); // Reset all - longer delay for reset
+      await Future.delayed(Duration(seconds: 1)); // Wait for device to stabilize
+
+      // Basic setup
+      await _sendCommandAndWait('ATE0', 200); // No echo
+      await _sendCommandAndWait('ATS0', 200); // No spaces
+      await _sendCommandAndWait('ATH0', 200); // No headers
+      await _sendCommandAndWait('ATL0', 200); // No linefeeds
+
+      // CAN setup
+      await _sendCommandAndWait('ATSP6', 200); // CAN 500K 11 bit
+      await _sendCommandAndWait('ATAT1', 200); // Auto timing
+      await _sendCommandAndWait('ATCAF0', 200); // No formatting
+
+      // Flow control setup
+      await _sendCommandAndWait('ATFCSh77B', 200); // Flow control response ID
+      await _sendCommandAndWait('ATFCSD300010', 200); // Flow control response data
+      await _sendCommandAndWait('ATFCSM1', 200); // Flow control mode 1
 
       _isInitialized = true;
       ref.read(oBD2DataProvider.notifier).setConnectionStatus('Connected');
@@ -95,8 +88,8 @@ class OBD2Service extends _$OBD2Service {
     }
   }
 
-  // Send command to the device
-  Future<void> _sendCommand(String command) async {
+  // Send command and wait for response
+  Future<String> _sendCommandAndWait(String command, int delayMs) async {
     try {
       final commandBytes = Uint8List.fromList('$command\r'.codeUnits);
       await _ble.writeCharacteristicWithResponse(
@@ -107,32 +100,65 @@ class OBD2Service extends _$OBD2Service {
         ),
         value: commandBytes,
       );
+
       // Wait for response
-      await Future.delayed(const Duration(milliseconds: 100));
+      await Future.delayed(Duration(milliseconds: delayMs));
+
+      // Get the response
+      String response = await _getResponse();
+      print('Command: $command, Response: $response');
+
+      // Clean up response - remove CR, LF, > and spaces
+      response = response.replaceAll(RegExp(r'[\r\n>]'), '').trim();
+
+      // Log the status but don't throw
+      if (response.contains('NO DATA')) {
+        print('Warning: No data available for command: $command');
+      } else if (response.contains('STOPD')) {
+        print('Warning: Device stopped for command: $command');
+      } else if (response.contains('?')) {
+        print('Warning: Unknown command: $command');
+      } else if (!response.contains('OK')) {
+        print('Warning: Command did not return OK: $command');
+      }
+
+      return response;
     } catch (e) {
       print('Error sending command: $e');
       ref.read(oBD2DataProvider.notifier).setError('Failed to send command: $e');
-      rethrow;
+      return ''; // Return empty string instead of throwing
     }
   }
 
+  // Get response from the device
+  Future<String> _getResponse() async {
+    // This is a placeholder - you'll need to implement actual response handling
+    // based on your BLE communication setup
+    return "OK";
+  }
+
   // Request specific data from the device
-  Future<void> requestData(String pid) async {
+  Future<void> requestData(String pid, String canId) async {
     if (!_isInitialized) {
       await initializeDevice();
     }
 
     try {
-      // Determine which CAN ID to use based on the PID
-      String canId = pid.startsWith('22') ? EVC_CAN_ID : LBC_CAN_ID;
+      // Set the CAN ID using AT SH command
+      await _sendCommandAndWait('AT SH $canId', 200);
 
-      // First set the CAN ID using AT SH command
-      await _sendCommand('AT SH $canId');
-      // Then send the actual request
-      await _sendCommand(pid);
+      // Then send the actual request with proper ISO-TP format
+      String request = '0222${pid}'; // Mode 22, PID
+      String response = await _sendCommandAndWait(request, 500); // Longer delay for data request
+
+      // Only update data if we got a valid response
+      if (response.isNotEmpty && !response.contains('NO DATA') && !response.contains('STOPD')) {
+        // Process the response
+        // ... rest of your data processing code ...
+      }
     } catch (e) {
       print('Error requesting data: $e');
-      ref.read(oBD2DataProvider.notifier).setError('Failed to request data: $e');
+      // Don't set error state, just log it
     }
   }
 
@@ -174,10 +200,10 @@ class OBD2Service extends _$OBD2Service {
 
       try {
         // Request Spring-specific data points
-        await requestData(PID_BATTERY_VOLTAGE); // Battery Voltage
-        await requestData(PID_VEHICLE_SPEED);   // Vehicle Speed
-        await requestData(PID_BATTERY_TEMP);    // Battery Temperature
-        await requestData(PID_BATTERY_CURRENT); // Battery Current
+        await requestData(PID_BATTERY_VOLTAGE, LBC_CAN_ID); // Battery Voltage
+        await requestData(PID_VEHICLE_SPEED, EVC_CAN_ID);   // Vehicle Speed
+        await requestData(PID_BATTERY_TEMP, EVC_CAN_ID);    // Battery Temperature
+        await requestData(PID_BATTERY_CURRENT, LBC_CAN_ID); // Battery Current
       } catch (e) {
         print('Error in periodic data request: $e');
         ref.read(oBD2DataProvider.notifier).setError('Periodic request error: $e');
@@ -190,6 +216,10 @@ class OBD2Service extends _$OBD2Service {
     if (data.isEmpty) return {};
 
     try {
+      // Convert data to ASCII string first
+      String asciiData = String.fromCharCodes(data);
+      print('Received ASCII data: $asciiData');
+
       // Convert data to hex string
       String hexData = data
           .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
@@ -201,10 +231,9 @@ class OBD2Service extends _$OBD2Service {
       Map<String, dynamic> parsedData = Map<String, dynamic>.from(currentState);
       parsedData["raw"] = hexData;
 
-      // Check for error response
-      if (hexData.startsWith('7F')) {
-        print('Error response received: $hexData');
-        ref.read(oBD2DataProvider.notifier).setError('Device error: $hexData');
+      // Check for error responses
+      if (asciiData.contains('NO DATA') || asciiData.contains('STOPD') || asciiData.contains('?')) {
+        print('Error response received: $asciiData');
         return parsedData;
       }
 
