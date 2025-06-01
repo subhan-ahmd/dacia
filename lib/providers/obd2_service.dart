@@ -103,13 +103,16 @@ class OBD2Service extends _$OBD2Service {
 
   // Initialize the ELM327 device
   Future<void> initializeDevice() async {
-    if (_isInitialized) return;
+    // If already initialized, don't try to initialize again
+    if (_isInitialized) {
+      print('Device already initialized, skipping initialization');
+      return;
+    }
+
+    // Set initializing state
+    ref.read(oBD2DataProvider.notifier).setConnectionStatus('Initializing...');
 
     try {
-      ref
-          .read(oBD2DataProvider.notifier)
-          .setConnectionStatus('Initializing...');
-
       // Enable notifications
       await _ble.writeCharacteristicWithResponse(
         QualifiedCharacteristic(
@@ -137,6 +140,7 @@ class OBD2Service extends _$OBD2Service {
       ); // Flow control response data
       await _sendCommandAndWait('ATFCSM1', 200); // Flow control mode 1
 
+      // Only set initialized if all commands succeeded
       _isInitialized = true;
       ref.read(oBD2DataProvider.notifier).setConnectionStatus('Connected');
       ref.read(oBD2DataProvider.notifier).setError(null);
@@ -150,6 +154,8 @@ class OBD2Service extends _$OBD2Service {
           .setError('Failed to initialize device: $e');
       ref.read(oBD2DataProvider.notifier).setInitialized(false);
       print('Error initializing device: $e');
+      // Re-throw the error to be handled by the caller
+      throw e;
     }
   }
 
@@ -271,7 +277,13 @@ class OBD2Service extends _$OBD2Service {
             value: commandBytes,
           );
 
-          // Wait for response with simple delay
+          // For initialization commands (AT commands), just wait and return OK
+          if (command.startsWith('AT')) {
+            await Future.delayed(Duration(milliseconds: timeout));
+            return 'OK';
+          }
+
+          // For data requests, wait for response
           String response = '';
           bool responseReceived = false;
 
@@ -312,6 +324,10 @@ class OBD2Service extends _$OBD2Service {
             ); // Increased delay between checks
             waitTime += 100;
           }
+
+          // Cancel the subscription after use
+          _subscription?.cancel();
+          _subscription = null;
 
           // If we got a response, process it
           if (responseReceived) {
@@ -360,7 +376,7 @@ class OBD2Service extends _$OBD2Service {
 
   // Request specific data from the device
   Future<void> requestData(String pid) async {
-    // Don't try to initialize if already initialized
+    // If not initialized, don't try to request data
     if (!_isInitialized) {
       print('Device not initialized, skipping data request');
       return;
@@ -371,28 +387,42 @@ class OBD2Service extends _$OBD2Service {
       String canId = pid.startsWith('22') ? EVC_CAN_ID : LBC_CAN_ID;
       final formatter = CanIdFormatter(canId);
 
-      // Check if we need to switch CAN mode
-      if (formatter.isExtended) {
-        await _sendCommandAndWait('atsp7', 200); // Switch to 29-bit mode
-        ref.read(oBD2DataProvider.notifier).setCanMode('29bit');
-        // Set priority using AT CP
-        await _sendCommandAndWait('atcp${formatter.getToIdHexMSB()}', 200);
-      } else {
-        await _sendCommandAndWait('atsp6', 200); // Switch to 11-bit mode
-        ref.read(oBD2DataProvider.notifier).setCanMode('11bit');
+      // Get current state
+      final currentState = ref.read(oBD2DataProvider);
+      final currentCanMode = currentState['canMode'] as String? ?? '11bit';
+      final currentCanId = currentState['currentCanId'] as String? ?? '';
+
+      // Only send CAN mode commands if we need to switch modes
+      bool needModeSwitch = false;
+      if (formatter.isExtended && currentCanMode != '29bit') {
+        needModeSwitch = true;
+      } else if (!formatter.isExtended && currentCanMode != '11bit') {
+        needModeSwitch = true;
       }
 
-      // Set header (where to send) - using LSB format
-      await _sendCommandAndWait('atsh${formatter.getToIdHexLSB()}', 200);
+      if (needModeSwitch) {
+        if (formatter.isExtended) {
+          await _sendCommandAndWait('atsp7', 200); // Switch to 29-bit mode
+          ref.read(oBD2DataProvider.notifier).setCanMode('29bit');
+          // Set priority using AT CP
+          await _sendCommandAndWait('atcp${formatter.getToIdHexMSB()}', 200);
+        } else {
+          await _sendCommandAndWait('atsp6', 200); // Switch to 11-bit mode
+          ref.read(oBD2DataProvider.notifier).setCanMode('11bit');
+        }
+      }
 
-      // Set filter (what to receive) - using standard format
-      await _sendCommandAndWait('atcra${formatter.getFromIdHex()}', 200);
-
-      // Set flow control response ID - using standard format
-      await _sendCommandAndWait('atfcsh${formatter.getToIdHex()}', 200);
-
-      // Update current CAN ID
-      ref.read(oBD2DataProvider.notifier).setCurrentCanId(canId);
+      // Only set header and filter if CAN ID has changed
+      if (currentCanId != canId) {
+        // Set header (where to send) - using LSB format
+        await _sendCommandAndWait('atsh${formatter.getToIdHexLSB()}', 200);
+        // Set filter (what to receive) - using standard format
+        await _sendCommandAndWait('atcra${formatter.getFromIdHex()}', 200);
+        // Set flow control response ID - using standard format
+        await _sendCommandAndWait('atfcsh${formatter.getToIdHex()}', 200);
+        // Update current CAN ID
+        ref.read(oBD2DataProvider.notifier).setCurrentCanId(canId);
+      }
 
       // Then send the actual request (pid already includes the '22' service ID)
       await _sendCommandAndWait(pid, 500); // Longer timeout for data request
@@ -406,6 +436,10 @@ class OBD2Service extends _$OBD2Service {
 
   // Subscribe to characteristic updates
   void subscribeToData() async {
+    // Cancel any existing subscription and timer
+    _subscription?.cancel();
+    _dataRequestTimer?.cancel();
+
     // Only initialize if not already initialized
     if (!_isInitialized) {
       try {
@@ -420,6 +454,7 @@ class OBD2Service extends _$OBD2Service {
       }
     }
 
+    // Set up the subscription for receiving data
     _subscription = _ble
         .subscribeToCharacteristic(
           QualifiedCharacteristic(
@@ -439,6 +474,7 @@ class OBD2Service extends _$OBD2Service {
           onError: (dynamic error) {
             print('Error in subscription: $error');
             _isInitialized = false;
+            _dataRequestTimer?.cancel(); // Cancel timer on error
             ref
                 .read(oBD2DataProvider.notifier)
                 .setError('Subscription error: $error');
@@ -449,7 +485,7 @@ class OBD2Service extends _$OBD2Service {
 
     // Start periodic data requests only if initialized
     if (_isInitialized) {
-      _dataRequestTimer?.cancel();
+      _dataRequestTimer?.cancel(); // Ensure any existing timer is cancelled
       _dataRequestTimer = Timer.periodic(const Duration(seconds: 1), (
         timer,
       ) async {
@@ -466,6 +502,8 @@ class OBD2Service extends _$OBD2Service {
           await requestData(PID_BATTERY_CURRENT); // Battery Current
         } catch (e) {
           print('Error in periodic data request: $e');
+          _isInitialized = false; // Mark as uninitialized on error
+          timer.cancel(); // Cancel timer on error
           ref
               .read(oBD2DataProvider.notifier)
               .setError('Periodic request error: $e');
@@ -555,6 +593,7 @@ class OBD2Service extends _$OBD2Service {
   void dispose() {
     _subscription?.cancel();
     _dataRequestTimer?.cancel();
+    _isInitialized = false; // Reset initialization state
     ref.read(oBD2DataProvider.notifier).setConnectionStatus('Disconnected');
   }
 }
