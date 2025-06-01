@@ -80,6 +80,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
             _buildDataCard('Connection Status', '${obd2Data['connectionStatus']}'),
+            _buildDataCard('Initialization Status',
+                obd2Data['isInitialized'] ? 'Initialized' : 'Not Initialized'),
+            _buildDataCard('CAN Mode', '${obd2Data['canMode']}'),
+            _buildDataCard('Current CAN ID', '${obd2Data['currentCanId']}'),
             _buildDataCard('Battery Voltage',
                 '${obd2Data['voltage']?.toStringAsFixed(1)}V'),
             _buildDataCard(
@@ -88,8 +92,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 '${obd2Data['temperature']?.toStringAsFixed(1)}°C'),
             _buildDataCard('Battery Current',
                 '${obd2Data['current']?.toStringAsFixed(1)}A'),
-            _buildDataCard('Hex Data', '${obd2Data['raw']}'),
-            _buildHexDataCard('Raw Data', obd2Data['raw']),
+            _buildDataCard('Last Command', '${obd2Data['lastCommand']}'),
+            _buildDataCard('Last Response', '${obd2Data['lastResponse']}'),
+            _buildDataCard('Raw Hex Data', '${obd2Data['raw']}'),
+            _buildHexDataCard('Decoded Data', obd2Data['raw']),
             if (obd2Data['lastUpdate'] != null)
               Card(
                 margin: const EdgeInsets.all(8.0),
@@ -108,7 +114,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       margin: const EdgeInsets.all(8.0),
       child: ListTile(
         title: Text(title),
-        trailing: Text(value),
+        trailing: Text(
+          value,
+          style: TextStyle(
+            fontFamily: 'monospace',
+            fontSize: 14,
+          ),
+        ),
       ),
     );
   }
@@ -144,8 +156,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       margin: const EdgeInsets.all(8.0),
       child: ListTile(
         title: Text(title),
-        subtitle: Text('Decoded: $decodedValue'),
-        trailing: Text('Hex: $hexData'),
+        subtitle: Text(
+          'Decoded: $decodedValue',
+          style: TextStyle(
+            fontFamily: 'monospace',
+            fontSize: 14,
+          ),
+        ),
+        trailing: Text(
+          'Hex: $hexData',
+          style: TextStyle(
+            fontFamily: 'monospace',
+            fontSize: 14,
+          ),
+        ),
       ),
     );
   }

@@ -1,6 +1,7 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -9,31 +10,84 @@ import '../providers/selected_device_provider.dart';
 
 part 'obd2_service.g.dart';
 
+// CAN ID formatter class
+class CanIdFormatter {
+  final String canId;
+  final bool isExtended;
+
+  CanIdFormatter(this.canId, {this.isExtended = false});
+
+  // Get ID in LSB format for sending (atsh)
+  String getToIdHexLSB() {
+    if (isExtended) {
+      // For 29-bit IDs, format as 6 bytes with bit masking (like Java's & 0xffffff)
+      int id = int.parse(canId, radix: 16);
+      return (id & 0xffffff).toRadixString(16).padLeft(6, '0');
+    } else {
+      // For 11-bit IDs, format as 3 bytes (like Java's %03x)
+      return canId.padLeft(3, '0');
+    }
+  }
+
+  // Get ID in standard format for receiving (atcra)
+  String getFromIdHex() {
+    if (isExtended) {
+      // For 29-bit IDs, format as 8 bytes (like Java's %08x)
+      return canId.padLeft(8, '0');
+    } else {
+      // For 11-bit IDs, format as 3 bytes (like Java's %03x)
+      return canId.padLeft(3, '0');
+    }
+  }
+
+  // Get ID in standard format for flow control (atfcsh)
+  String getToIdHex() {
+    if (isExtended) {
+      // For 29-bit IDs, format as 8 bytes (like Java's %08x)
+      return canId.padLeft(8, '0');
+    } else {
+      // For 11-bit IDs, format as 3 bytes (like Java's %03x)
+      return canId.padLeft(3, '0');
+    }
+  }
+
+  // Get MSB for priority (like Java's getToIdHexMSB)
+  String getToIdHexMSB() {
+    if (isExtended) {
+      int id = int.parse(canId, radix: 16);
+      return ((id & 0x1f000000) >> 24).toRadixString(16).padLeft(2, '0');
+    }
+    return '00';
+  }
+}
+
 @riverpod
 class OBD2Service extends _$OBD2Service {
   final FlutterReactiveBle _ble = FlutterReactiveBle();
   StreamSubscription? _subscription;
   bool _isInitialized = false;
   Timer? _dataRequestTimer;
+  String? _lastError;
+  int _lastId = 0;
 
   // These UUIDs should be discovered from your device
   late final String serviceUuid = "e7810a71-73ae-499d-8c15-faa9aef0c3f2";
   late final String characteristicUuid = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f";
 
   // CAN IDs for different controllers
-  static const String EVC_CAN_ID = '7ec';  // Electric Vehicle Controller
-  static const String LBC_CAN_ID = '7bb';  // Lithium Battery Controller
+  static const String EVC_CAN_ID = '7ec'; // Electric Vehicle Controller
+  static const String LBC_CAN_ID = '7bb'; // Lithium Battery Controller
 
   // Request PIDs
   static const String PID_BATTERY_VOLTAGE = '229005'; // Pack Voltage CAN value (scale: 0.1 V)
-  static const String PID_VEHICLE_SPEED = '222003';   // Vehicle speed (scale: 0.01 km/h)
-  static const String PID_BATTERY_TEMP = '222001';    // Battery Rack temperature (scale: 1 °C, offset: 40)
+  static const String PID_VEHICLE_SPEED = '222003'; // Vehicle speed (scale: 0.01 km/h)
+  static const String PID_BATTERY_TEMP = '222001'; // Battery Rack temperature (scale: 1 °C, offset: 40)
   static const String PID_BATTERY_CURRENT = '22900D'; // Instant Current of Battery (scale: 0.025 A, offset: 48000)
 
   // Response PIDs
   static const String RESP_BATTERY_VOLTAGE = '629005'; // Response for battery voltage
-  static const String RESP_VEHICLE_SPEED = '622003';   // Response for vehicle speed
-  static const String RESP_BATTERY_TEMP = '622001';    // Response for battery temperature
+  static const String RESP_VEHICLE_SPEED = '622003'; // Response for vehicle speed
+  static const String RESP_BATTERY_TEMP = '622001'; // Response for battery temperature
   static const String RESP_BATTERY_CURRENT = '62900D'; // Response for battery current
 
   @override
@@ -56,25 +110,15 @@ class OBD2Service extends _$OBD2Service {
         value: Uint8List.fromList([0x01, 0x00]), // Enable notifications
       );
 
-      // Send initialization commands with proper delays
-      await _sendCommandAndWait('ATZ', 2000); // Reset all - longer delay for reset
-      await Future.delayed(Duration(seconds: 1)); // Wait for device to stabilize
-
-      // Basic setup
-      await _sendCommandAndWait('ATE0', 200); // No echo
-      await _sendCommandAndWait('ATS0', 200); // No spaces
-      await _sendCommandAndWait('ATH0', 200); // No headers
-      await _sendCommandAndWait('ATL0', 200); // No linefeeds
-
-      // CAN setup
-      await _sendCommandAndWait('ATSP6', 200); // CAN 500K 11 bit
-      await _sendCommandAndWait('ATAT1', 200); // Auto timing
-      await _sendCommandAndWait('ATCAF0', 200); // No formatting
-
-      // Flow control setup
-      await _sendCommandAndWait('ATFCSh77B', 200); // Flow control response ID
-      await _sendCommandAndWait('ATFCSD300010', 200); // Flow control response data
-      await _sendCommandAndWait('ATFCSM1', 200); // Flow control mode 1
+      // Send initialization commands
+      await _sendCommandAndWait('ate0', 200); // No echo
+      await _sendCommandAndWait('ats0', 200); // No spaces
+      await _sendCommandAndWait('atsp6', 200); // CAN 500K 11 bit
+      await _sendCommandAndWait('atat1', 200); // Auto timing
+      await _sendCommandAndWait('atcaf0', 200); // No formatting
+      await _sendCommandAndWait('atfcsh77b', 200); // Flow control response ID
+      await _sendCommandAndWait('atfcsd300010', 200); // Flow control response data
+      await _sendCommandAndWait('atfcsm1', 200); // Flow control mode 1
 
       _isInitialized = true;
       ref.read(oBD2DataProvider.notifier).setConnectionStatus('Connected');
@@ -88,8 +132,8 @@ class OBD2Service extends _$OBD2Service {
     }
   }
 
-  // Send command and wait for response
-  Future<String> _sendCommandAndWait(String command, int delayMs) async {
+  // Send command to the device with timeout
+  Future<String> _sendCommandAndWait(String command, int timeout) async {
     try {
       final commandBytes = Uint8List.fromList('$command\r'.codeUnits);
       await _ble.writeCharacteristicWithResponse(
@@ -101,64 +145,92 @@ class OBD2Service extends _$OBD2Service {
         value: commandBytes,
       );
 
-      // Wait for response
-      await Future.delayed(Duration(milliseconds: delayMs));
+      // Wait for response with timeout
+      String response = '';
+      bool responseReceived = false;
+      Timer? timeoutTimer;
 
-      // Get the response
-      String response = await _getResponse();
-      print('Command: $command, Response: $response');
+      _subscription?.cancel();
+      _subscription = _ble
+          .subscribeToCharacteristic(
+            QualifiedCharacteristic(
+              deviceId: ref.read(selectedDeviceProvider)!.id,
+              serviceId: Uuid.parse(serviceUuid),
+              characteristicId: Uuid.parse(characteristicUuid),
+            ),
+          )
+          .listen(
+            (data) {
+              response = String.fromCharCodes(data).trim();
+              responseReceived = true;
+              timeoutTimer?.cancel();
+            },
+            onError: (error) {
+              print('Error receiving response: $error');
+              timeoutTimer?.cancel();
+            },
+          );
 
-      // Clean up response - remove CR, LF, > and spaces
-      response = response.replaceAll(RegExp(r'[\r\n>]'), '').trim();
+      // Set timeout
+      timeoutTimer = Timer(Duration(milliseconds: timeout), () {
+        if (!responseReceived) {
+          _subscription?.cancel();
+          throw TimeoutException('Command timed out: $command');
+        }
+      });
 
-      // Log the status but don't throw
-      if (response.contains('NO DATA')) {
-        print('Warning: No data available for command: $command');
-      } else if (response.contains('STOPD')) {
-        print('Warning: Device stopped for command: $command');
-      } else if (response.contains('?')) {
-        print('Warning: Unknown command: $command');
-      } else if (!response.contains('OK')) {
-        print('Warning: Command did not return OK: $command');
+      // Wait for response or timeout
+      while (!responseReceived) {
+        await Future.delayed(const Duration(milliseconds: 10));
+      }
+
+      // Check for error responses
+      if (response.contains('ERROR') || response.contains('?')) {
+        throw Exception('Device error: $response');
       }
 
       return response;
     } catch (e) {
       print('Error sending command: $e');
       ref.read(oBD2DataProvider.notifier).setError('Failed to send command: $e');
-      return ''; // Return empty string instead of throwing
+      rethrow;
     }
   }
 
-  // Get response from the device
-  Future<String> _getResponse() async {
-    // This is a placeholder - you'll need to implement actual response handling
-    // based on your BLE communication setup
-    return "OK";
-  }
-
   // Request specific data from the device
-  Future<void> requestData(String pid, String canId) async {
+  Future<void> requestData(String pid) async {
     if (!_isInitialized) {
       await initializeDevice();
     }
 
     try {
-      // Set the CAN ID using AT SH command
-      await _sendCommandAndWait('AT SH $canId', 200);
+      // Determine which CAN ID to use based on the PID
+      String canId = pid.startsWith('22') ? EVC_CAN_ID : LBC_CAN_ID;
+      final formatter = CanIdFormatter(canId);
 
-      // Then send the actual request with proper ISO-TP format
-      String request = '0222${pid}'; // Mode 22, PID
-      String response = await _sendCommandAndWait(request, 500); // Longer delay for data request
-
-      // Only update data if we got a valid response
-      if (response.isNotEmpty && !response.contains('NO DATA') && !response.contains('STOPD')) {
-        // Process the response
-        // ... rest of your data processing code ...
+      // Check if we need to switch CAN mode
+      if (formatter.isExtended) {
+        await _sendCommandAndWait('atsp7', 200); // Switch to 29-bit mode
+        // Set priority using AT CP
+        await _sendCommandAndWait('atcp${formatter.getToIdHexMSB()}', 200);
+      } else {
+        await _sendCommandAndWait('atsp6', 200); // Switch to 11-bit mode
       }
+
+      // Set header (where to send) - using LSB format
+      await _sendCommandAndWait('atsh${formatter.getToIdHexLSB()}', 200);
+
+      // Set filter (what to receive) - using standard format
+      await _sendCommandAndWait('atcra${formatter.getFromIdHex()}', 200);
+
+      // Set flow control response ID - using standard format
+      await _sendCommandAndWait('atfcsh${formatter.getToIdHex()}', 200);
+
+      // Then send the actual request (pid already includes the '22' service ID)
+      await _sendCommandAndWait(pid, 500); // Longer timeout for data request
     } catch (e) {
       print('Error requesting data: $e');
-      // Don't set error state, just log it
+      ref.read(oBD2DataProvider.notifier).setError('Failed to request data: $e');
     }
   }
 
@@ -200,10 +272,10 @@ class OBD2Service extends _$OBD2Service {
 
       try {
         // Request Spring-specific data points
-        await requestData(PID_BATTERY_VOLTAGE, LBC_CAN_ID); // Battery Voltage
-        await requestData(PID_VEHICLE_SPEED, EVC_CAN_ID);   // Vehicle Speed
-        await requestData(PID_BATTERY_TEMP, EVC_CAN_ID);    // Battery Temperature
-        await requestData(PID_BATTERY_CURRENT, LBC_CAN_ID); // Battery Current
+        await requestData(PID_BATTERY_VOLTAGE); // Battery Voltage
+        await requestData(PID_VEHICLE_SPEED); // Vehicle Speed
+        await requestData(PID_BATTERY_TEMP); // Battery Temperature
+        await requestData(PID_BATTERY_CURRENT); // Battery Current
       } catch (e) {
         print('Error in periodic data request: $e');
         ref.read(oBD2DataProvider.notifier).setError('Periodic request error: $e');
@@ -216,10 +288,6 @@ class OBD2Service extends _$OBD2Service {
     if (data.isEmpty) return {};
 
     try {
-      // Convert data to ASCII string first
-      String asciiData = String.fromCharCodes(data);
-      print('Received ASCII data: $asciiData');
-
       // Convert data to hex string
       String hexData = data
           .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
@@ -231,9 +299,10 @@ class OBD2Service extends _$OBD2Service {
       Map<String, dynamic> parsedData = Map<String, dynamic>.from(currentState);
       parsedData["raw"] = hexData;
 
-      // Check for error responses
-      if (asciiData.contains('NO DATA') || asciiData.contains('STOPD') || asciiData.contains('?')) {
-        print('Error response received: $asciiData');
+      // Check for error response
+      if (hexData.startsWith('7F')) {
+        print('Error response received: $hexData');
+        ref.read(oBD2DataProvider.notifier).setError('Device error: $hexData');
         return parsedData;
       }
 
@@ -263,7 +332,7 @@ class OBD2Service extends _$OBD2Service {
   // Helper methods to parse specific data types
   double _parseVoltage(String hexData) {
     if (hexData.isEmpty) return 0.0;
-    // Extract the value after the response PID
+    // Extract the value after the PID
     String value = hexData.split(RESP_BATTERY_VOLTAGE)[1].trim();
     int rawValue = int.parse(value, radix: 16);
     return rawValue * 0.1; // Scale: 0.1 V
