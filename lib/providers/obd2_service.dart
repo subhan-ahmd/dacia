@@ -223,15 +223,14 @@ class OBD2Service extends _$OBD2Service {
   // Send command to the device with timeout
   Future<String> _sendCommandAndWait(String command, int timeout) async {
     try {
-      // Add proper line ending as in Java implementation
+      // Add proper line ending
       final commandBytes = Uint8List.fromList('$command\r'.codeUnits);
 
-      // Check if device is still connected before sending
-      if (!_isInitialized && command == 'ATE0') {
-        await Future.delayed(
-          const Duration(milliseconds: 500),
-        ); // Give device time to stabilize
-      }
+      // Create a completer to handle the async response
+      final completer = Completer<String>();
+      StreamSubscription? subscription;
+      String response = '';
+      bool responseReceived = false;
 
       // Try the command up to 2 times
       for (int i = 0; i < 2; i++) {
@@ -246,6 +245,43 @@ class OBD2Service extends _$OBD2Service {
               .setLastCommandTimestamp(DateTime.now());
           ref.read(oBD2DataProvider.notifier).incrementCommandRetry();
 
+          // Set up subscription before sending command
+          subscription = _ble
+              .subscribeToCharacteristic(
+            QualifiedCharacteristic(
+              deviceId: ref.read(selectedDeviceProvider)!.id,
+              serviceId: Uuid.parse(serviceUuid),
+              characteristicId: Uuid.parse(characteristicUuid),
+            ),
+          )
+              .listen(
+            (data) {
+              response = String.fromCharCodes(data).trim();
+              print("Command: $command");
+              print('Response received: ${response}');
+              print('Raw data received: ${data.toList()}');
+              if (response.isNotEmpty) {
+                responseReceived = true;
+                ref.read(oBD2DataProvider.notifier).setLastResponse(response);
+                ref
+                    .read(oBD2DataProvider.notifier)
+                    .setLastResponseTimestamp(DateTime.now());
+
+                // Complete with response if we haven't already
+                if (!completer.isCompleted) {
+                  completer.complete(response);
+                }
+              }
+            },
+            onError: (error) {
+              print('Error receiving response: $error');
+              if (!completer.isCompleted) {
+                completer.completeError(error);
+              }
+            },
+          );
+
+          // Send the command
           await _ble.writeCharacteristicWithResponse(
             QualifiedCharacteristic(
               deviceId: ref.read(selectedDeviceProvider)!.id,
@@ -258,59 +294,22 @@ class OBD2Service extends _$OBD2Service {
           // For initialization commands (AT commands), just wait and return OK
           if (command.startsWith('AT')) {
             await Future.delayed(Duration(milliseconds: timeout));
+            await subscription?.cancel();
             return 'OK';
           }
 
-          // For data requests, wait for response
-          String response = '';
-          bool responseReceived = false;
+          // For data requests, wait for response with timeout
+          try {
+            response = await completer.future.timeout(
+              Duration(
+                  milliseconds:
+                      timeout * 2), // Double the timeout for more patience
+              onTimeout: () {
+                throw TimeoutException('Command timed out: $command');
+              },
+            );
 
-          _subscription?.cancel();
-          _subscription = _ble
-              .subscribeToCharacteristic(
-            QualifiedCharacteristic(
-              deviceId: ref.read(selectedDeviceProvider)!.id,
-              serviceId: Uuid.parse(serviceUuid),
-              characteristicId: Uuid.parse(characteristicUuid),
-            ),
-          )
-              .listen(
-            (data) {
-              response = String.fromCharCodes(data).trim();
-              print("Command: $command");
-              print('Response received: $response');
-              print('Raw data received: ${data.toList()}');
-              if (response.isNotEmpty) {
-                // Only consider non-empty responses
-                responseReceived = true;
-                ref.read(oBD2DataProvider.notifier).setLastResponse(response);
-                ref
-                    .read(oBD2DataProvider.notifier)
-                    .setLastResponseTimestamp(DateTime.now());
-              }
-            },
-            onError: (error) {
-              print('Error receiving response: $error');
-            },
-          );
-
-          // Wait for response with extended timeout
-          int waitTime = 0;
-          int maxWaitTime = timeout * 2; // Double the timeout for more patience
-          while (!responseReceived && waitTime < maxWaitTime) {
-            await Future.delayed(
-              const Duration(milliseconds: 100),
-            ); // Increased delay between checks
-            waitTime += 100;
-          }
-
-          // Cancel the subscription after use
-          _subscription?.cancel();
-          _subscription = null;
-
-          // If we got a response, process it
-          if (responseReceived) {
-            // Check for OK response as in Java implementation
+            // Check for OK response
             if (response.toUpperCase().contains('OK')) {
               // Add appropriate delay based on command type
               if (command.startsWith('ATSP')) {
@@ -320,26 +319,33 @@ class OBD2Service extends _$OBD2Service {
               } else {
                 await Future.delayed(const Duration(milliseconds: 200));
               }
+              await subscription?.cancel();
               return response;
             }
-          }
-
-          // If we get here, either no response or no OK
-          if (i == 1) {
-            // Last attempt - wait a bit longer before giving up
-            await Future.delayed(const Duration(milliseconds: 500));
-            return response; // Return whatever response we got, even if empty
+          } catch (e) {
+            print('Timeout or error waiting for response: $e');
+            if (i == 1) {
+              // Last attempt - wait a bit longer before giving up
+              await Future.delayed(const Duration(milliseconds: 500));
+              await subscription?.cancel();
+              return response; // Return whatever response we got, even if empty
+            }
           }
 
           // Wait before retry
           await Future.delayed(const Duration(milliseconds: 200));
         } catch (e) {
+          print('Error in command attempt $i: $e');
           if (i == 1) {
             // Last attempt - just return empty response
+            await subscription?.cancel();
             return '';
           }
           // Wait before retry
           await Future.delayed(const Duration(milliseconds: 200));
+        } finally {
+          // Ensure subscription is cancelled
+          await subscription?.cancel();
         }
       }
 
@@ -503,8 +509,8 @@ class OBD2Service extends _$OBD2Service {
     )
         .listen(
       (data) {
-        print("Subscription");
         String response = String.fromCharCodes(data).trim();
+        print("Subscription");
         print('Response received: ${response}');
         print('Raw data received: ${data.toList()}');
         final parsedData = parseData(data);
@@ -527,9 +533,8 @@ class OBD2Service extends _$OBD2Service {
     // Start periodic data requests only if initialized
     if (_isInitialized) {
       _dataRequestTimer?.cancel(); // Ensure any existing timer is cancelled
-      _dataRequestTimer = Timer.periodic(const Duration(seconds: 1), (
-        timer,
-      ) async {
+      _dataRequestTimer =
+          Timer.periodic(const Duration(seconds: 1), (timer) async {
         if (!_isInitialized) {
           timer.cancel();
           return;
