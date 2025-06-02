@@ -5,31 +5,25 @@ part 'obd2_data.g.dart';
 @riverpod
 class OBD2Data extends _$OBD2Data {
   @override
-  Map<String, dynamic> build() {
-    return emptyData();
-  }
+  Map<String, dynamic> build() => emptyData();
 
   Map<String, dynamic> emptyData() => {
-    'voltage': 0.0,
-    'speed': 0.0,
-    'temperature': 0.0,
-    'current': 0.0,
-    'raw': '',
-    'lastUpdate': DateTime.now(),
+        'error': null,
     'connectionStatus': 'Disconnected',
-    'error': null,
-    'isInitialized': false,
-    'lastCommand': '',
-    'lastResponse': '',
-    'lastCommandTimestamp': null,
-    'lastResponseTimestamp': null,
-    'canMode': '11bit', // '11bit' or '29bit'
-    'currentCanId': '',
-    'bufferFlushData': '',
-    'lastBufferFlush': null,
-    'commandRetryCount': 0,
-    'commandTimeout': 0,
-  };
+        'isInitialized': false,
+        'canMode': '11bit',
+        'currentCanId': '',
+        'externalTemperature': 0.0,
+        'commandRetry': 0,
+        'lastCommand': '',
+        'lastResponse': '',
+        'lastCommandTimestamp': null,
+        'lastResponseTimestamp': null,
+        'lastBufferFlush': null,
+        'bufferFlushData': '',
+        'raw': '',
+        'lastUpdate': DateTime.now(),
+      };
 
   void reset() {
     state = emptyData();
@@ -59,6 +53,14 @@ class OBD2Data extends _$OBD2Data {
     };
   }
 
+  void setCanMode(String mode) {
+    state = {...state, 'canMode': mode, 'lastUpdate': DateTime.now()};
+  }
+
+  void setCurrentCanId(String canId) {
+    state = {...state, 'currentCanId': canId, 'lastUpdate': DateTime.now()};
+  }
+
   void setLastCommand(String command) {
     state = {...state, 'lastCommand': command, 'lastUpdate': DateTime.now()};
   }
@@ -68,38 +70,38 @@ class OBD2Data extends _$OBD2Data {
   }
 
   void setLastCommandTimestamp(DateTime timestamp) {
-    state = {...state, 'lastCommandTimestamp': timestamp, 'lastUpdate': DateTime.now()};
+    state = {
+      ...state,
+      'lastCommandTimestamp': timestamp,
+      'lastUpdate': DateTime.now(),
+    };
   }
 
   void setLastResponseTimestamp(DateTime timestamp) {
-    state = {...state, 'lastResponseTimestamp': timestamp, 'lastUpdate': DateTime.now()};
+    state = {
+      ...state,
+      'lastResponseTimestamp': timestamp,
+      'lastUpdate': DateTime.now(),
+    };
   }
 
-  void setCanMode(String mode) {
-    state = {...state, 'canMode': mode, 'lastUpdate': DateTime.now()};
-  }
-
-  void setCurrentCanId(String canId) {
-    state = {...state, 'currentCanId': canId, 'lastUpdate': DateTime.now()};
+  void setLastBufferFlush(DateTime timestamp) {
+    state = {
+      ...state,
+      'lastBufferFlush': timestamp,
+      'lastUpdate': DateTime.now(),
+    };
   }
 
   void setBufferFlushData(String data) {
     state = {...state, 'bufferFlushData': data, 'lastUpdate': DateTime.now()};
   }
 
-  void setLastBufferFlush(DateTime timestamp) {
-    state = {...state, 'lastBufferFlush': timestamp, 'lastUpdate': DateTime.now()};
-  }
-
   void incrementCommandRetry() {
     state = {
       ...state,
-      'commandRetryCount': (state['commandRetryCount'] as int) + 1,
+      'commandRetry': (state['commandRetry'] as int) + 1,
       'lastUpdate': DateTime.now(),
     };
-  }
-
-  void setCommandTimeout(int timeout) {
-    state = {...state, 'commandTimeout': timeout, 'lastUpdate': DateTime.now()};
   }
 }

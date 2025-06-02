@@ -30,9 +30,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             width: 12,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: connectedDevices.isDeviceConnected(id: selectedDevice?.id)
-                  ? Colors.green
-                  : Colors.red,
+              color:
+                  connectedDevices.isDeviceConnected(id: selectedDevice?.id)
+                      ? Colors.green
+                      : Colors.red,
             ),
           ),
           IconButton(
@@ -62,69 +63,78 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 }
               },
               dropdownMenuEntries: [
-                ...devices.map((device) => DropdownMenuEntry(
-                      value: device,
-                      label: device.name.isEmpty ? device.id : device.name,
-                      enabled: true,
-                      style: MenuItemButton.styleFrom(
-                          foregroundColor: Colors.black),
-                    )),
+                ...devices.map(
+                  (device) => DropdownMenuEntry(
+                    value: device,
+                    label: device.name.isEmpty ? device.id : device.name,
+                    enabled: true,
+                    style: MenuItemButton.styleFrom(
+                      foregroundColor: Colors.black,
+                    ),
+                  ),
+                ),
               ],
             ),
             if (obd2Data['error'] != null)
               Card(
                 margin: const EdgeInsets.all(8.0),
                 color: Colors.red.shade100,
-                child: ListTile(
-                  title: Text('Error: ${obd2Data['error']}'),
-                ),
+                child: ListTile(title: Text('Error: ${obd2Data['error']}')),
               ),
-            _buildDataCard('Connection Status', '${obd2Data['connectionStatus']}'),
-            _buildDataCard('Initialization Status',
-                obd2Data['isInitialized'] ? 'Initialized' : 'Not Initialized'),
+            _buildDataCard(
+              'Connection Status',
+              '${obd2Data['connectionStatus']}',
+            ),
+            _buildDataCard(
+              'Initialization Status',
+              obd2Data['isInitialized'] ? 'Initialized' : 'Not Initialized',
+            ),
             _buildDataCard('CAN Mode', '${obd2Data['canMode']}'),
             _buildDataCard('Current CAN ID', '${obd2Data['currentCanId']}'),
-            _buildDataCard('Command Timeout', '${obd2Data['commandTimeout']}ms'),
-            _buildDataCard('Command Retry Count', '${obd2Data['commandRetryCount']}'),
-            _buildDataCard('Battery Voltage',
-                '${obd2Data['voltage']?.toStringAsFixed(1)}V'),
             _buildDataCard(
-                'Speed', '${obd2Data['speed']?.toStringAsFixed(1)} km/h'),
-            _buildDataCard('Battery Temperature',
-                '${obd2Data['temperature']?.toStringAsFixed(1)}°C'),
-            _buildDataCard('Battery Current',
-                '${obd2Data['current']?.toStringAsFixed(1)}A'),
-            _buildDataCard('Last Command', '${obd2Data['lastCommand']}'),
-            _buildDataCard('Last Response', '${obd2Data['lastResponse']}'),
-            _buildDataCard('Buffer Flush Data', '${obd2Data['bufferFlushData']}'),
-            _buildDataCard('Raw Hex Data', '${obd2Data['raw']}'),
-            _buildHexDataCard('Decoded Data', obd2Data['raw']),
+              'External Temperature',
+              '${obd2Data['externalTemperature']?.toStringAsFixed(1)}°C',
+            ),
+            _buildDataCard(
+              'Command Retry Count',
+              '${obd2Data['commandRetry']}',
+            ),
+            if (obd2Data['lastCommand'] != null &&
+                obd2Data['lastCommand'].isNotEmpty)
+              _buildDataCard('Last Command', '${obd2Data['lastCommand']}'),
+            if (obd2Data['lastResponse'] != null &&
+                obd2Data['lastResponse'].isNotEmpty)
+              _buildDataCard('Last Response', '${obd2Data['lastResponse']}'),
+            if (obd2Data['lastCommandTimestamp'] != null)
+              _buildDataCard(
+                'Last Command Time',
+                '${obd2Data['lastCommandTimestamp']}',
+              ),
+            if (obd2Data['lastResponseTimestamp'] != null)
+              _buildDataCard(
+                'Last Response Time',
+                '${obd2Data['lastResponseTimestamp']}',
+              ),
+            if (obd2Data['lastBufferFlush'] != null)
+              _buildDataCard(
+                'Last Buffer Flush',
+                '${obd2Data['lastBufferFlush']}',
+              ),
+            if (obd2Data['bufferFlushData'] != null &&
+                obd2Data['bufferFlushData'].isNotEmpty)
+              _buildDataCard(
+                'Buffer Flush Data',
+                '${obd2Data['bufferFlushData']}',
+              ),
+            if (obd2Data['raw'] != null && obd2Data['raw'].isNotEmpty)
+              _buildDataCard('Raw Hex Data', '${obd2Data['raw']}'),
+            if (obd2Data['raw'] != null && obd2Data['raw'].isNotEmpty)
+              _buildHexDataCard('Decoded Data', obd2Data['raw']),
             if (obd2Data['lastUpdate'] != null)
               Card(
                 margin: const EdgeInsets.all(8.0),
                 child: ListTile(
                   title: Text('Last Update: ${obd2Data['lastUpdate']}'),
-                ),
-              ),
-            if (obd2Data['lastCommandTimestamp'] != null)
-              Card(
-                margin: const EdgeInsets.all(8.0),
-                child: ListTile(
-                  title: Text('Last Command Time: ${obd2Data['lastCommandTimestamp']}'),
-                ),
-              ),
-            if (obd2Data['lastResponseTimestamp'] != null)
-              Card(
-                margin: const EdgeInsets.all(8.0),
-                child: ListTile(
-                  title: Text('Last Response Time: ${obd2Data['lastResponseTimestamp']}'),
-                ),
-              ),
-            if (obd2Data['lastBufferFlush'] != null)
-              Card(
-                margin: const EdgeInsets.all(8.0),
-                child: ListTile(
-                  title: Text('Last Buffer Flush: ${obd2Data['lastBufferFlush']}'),
                 ),
               ),
           ],
@@ -140,10 +150,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         title: Text(title),
         trailing: Text(
           value,
-          style: TextStyle(
-            fontFamily: 'monospace',
-            fontSize: 14,
-          ),
+          style: TextStyle(fontFamily: 'monospace', fontSize: 14),
         ),
       ),
     );
@@ -172,8 +179,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         // If not readable ASCII, show as decimal values
         decodedValue = bytes.map((b) => b.toString()).join(', ');
       }
-    } catch (e, s) {
-      debugPrint("$e\n$s");
+    } catch (e) {
       decodedValue = 'Error decoding: $e';
     }
 
@@ -183,17 +189,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         title: Text(title),
         subtitle: Text(
           'Decoded: $decodedValue',
-          style: TextStyle(
-            fontFamily: 'monospace',
-            fontSize: 14,
-          ),
+          style: TextStyle(fontFamily: 'monospace', fontSize: 14),
         ),
         trailing: Text(
           'Hex: $hexData',
-          style: TextStyle(
-            fontFamily: 'monospace',
-            fontSize: 14,
-          ),
+          style: TextStyle(fontFamily: 'monospace', fontSize: 14),
         ),
       ),
     );

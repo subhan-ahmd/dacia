@@ -74,29 +74,9 @@ class OBD2Service extends _$OBD2Service {
   late final String serviceUuid = "e7810a71-73ae-499d-8c15-faa9aef0c3f2";
   late final String characteristicUuid = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f";
 
-  // CAN IDs for different controllers
-  static const String EVC_CAN_ID = '7ec'; // Electric Vehicle Controller
-  static const String LBC_CAN_ID = '7bb'; // Lithium Battery Controller
-
-  // Request PIDs
-  static const String PID_BATTERY_VOLTAGE =
-      '229005'; // Pack Voltage CAN value (scale: 0.1 V)
-  static const String PID_VEHICLE_SPEED =
-      '222003'; // Vehicle speed (scale: 0.01 km/h)
-  static const String PID_BATTERY_TEMP =
-      '222001'; // Battery Rack temperature (scale: 1 °C, offset: 40)
-  static const String PID_BATTERY_CURRENT =
-      '22900D'; // Instant Current of Battery (scale: 0.025 A, offset: 48000)
-
-  // Response PIDs
-  static const String RESP_BATTERY_VOLTAGE =
-      '629005'; // Response for battery voltage
-  static const String RESP_VEHICLE_SPEED =
-      '622003'; // Response for vehicle speed
-  static const String RESP_BATTERY_TEMP =
-      '622001'; // Response for battery temperature
-  static const String RESP_BATTERY_CURRENT =
-      '62900D'; // Response for battery current
+  static const String EVC_CAN_ID = '7ec';
+  static const String PID_EXTERNAL_TEMP = '2233B1';
+  static const String RESP_EXTERNAL_TEMP = '6233B1';
 
   @override
   void build() {}
@@ -205,28 +185,26 @@ class OBD2Service extends _$OBD2Service {
 
       _subscription = _ble
           .subscribeToCharacteristic(
-            QualifiedCharacteristic(
-              deviceId: ref.read(selectedDeviceProvider)!.id,
-              serviceId: Uuid.parse(serviceUuid),
-              characteristicId: Uuid.parse(characteristicUuid),
-            ),
-          )
+        QualifiedCharacteristic(
+          deviceId: ref.read(selectedDeviceProvider)!.id,
+          serviceId: Uuid.parse(serviceUuid),
+          characteristicId: Uuid.parse(characteristicUuid),
+        ),
+      )
           .listen(
-            (data) {
-              String response = String.fromCharCodes(data).trim();
-              if (response.isNotEmpty) {
-                buffer.write(response);
-                dataReceived = true;
-                print('Flushing buffer data: $response');
-                ref
-                    .read(oBD2DataProvider.notifier)
-                    .setBufferFlushData(response);
-              }
-            },
-            onError: (error) {
-              print('Error flushing buffer: $error');
-            },
-          );
+        (data) {
+          String response = String.fromCharCodes(data).trim();
+          if (response.isNotEmpty) {
+            buffer.write(response);
+            dataReceived = true;
+            print('Flushing buffer data: $response');
+            ref.read(oBD2DataProvider.notifier).setBufferFlushData(response);
+          }
+        },
+        onError: (error) {
+          print('Error flushing buffer: $error');
+        },
+      );
 
       // Wait a bit to clear any pending responses
       await Future.delayed(const Duration(milliseconds: 200));
@@ -290,30 +268,31 @@ class OBD2Service extends _$OBD2Service {
           _subscription?.cancel();
           _subscription = _ble
               .subscribeToCharacteristic(
-                QualifiedCharacteristic(
-                  deviceId: ref.read(selectedDeviceProvider)!.id,
-                  serviceId: Uuid.parse(serviceUuid),
-                  characteristicId: Uuid.parse(characteristicUuid),
-                ),
-              )
+            QualifiedCharacteristic(
+              deviceId: ref.read(selectedDeviceProvider)!.id,
+              serviceId: Uuid.parse(serviceUuid),
+              characteristicId: Uuid.parse(characteristicUuid),
+            ),
+          )
               .listen(
-                (data) {
-                  response = String.fromCharCodes(data).trim();
-                  if (response.isNotEmpty) {
-                    // Only consider non-empty responses
-                    responseReceived = true;
-                    ref
-                        .read(oBD2DataProvider.notifier)
-                        .setLastResponse(response);
-                    ref
-                        .read(oBD2DataProvider.notifier)
-                        .setLastResponseTimestamp(DateTime.now());
-                  }
-                },
-                onError: (error) {
-                  print('Error receiving response: $error');
-                },
-              );
+            (data) {
+              response = String.fromCharCodes(data).trim();
+              print("Command: $command");
+              print('Response received: $response');
+              print('Raw data received: ${data.toList()}');
+              if (response.isNotEmpty) {
+                // Only consider non-empty responses
+                responseReceived = true;
+                ref.read(oBD2DataProvider.notifier).setLastResponse(response);
+                ref
+                    .read(oBD2DataProvider.notifier)
+                    .setLastResponseTimestamp(DateTime.now());
+              }
+            },
+            onError: (error) {
+              print('Error receiving response: $error');
+            },
+          );
 
           // Wait for response with extended timeout
           int waitTime = 0;
@@ -375,7 +354,7 @@ class OBD2Service extends _$OBD2Service {
   }
 
   // Request specific data from the device
-  Future<void> requestData(String pid) async {
+  Future<void> requestData(String pid, String canId) async {
     // If not initialized, don't try to request data
     if (!_isInitialized) {
       print('Device not initialized, skipping data request');
@@ -383,8 +362,6 @@ class OBD2Service extends _$OBD2Service {
     }
 
     try {
-      // Determine which CAN ID to use based on the PID
-      String canId = pid.startsWith('22') ? EVC_CAN_ID : LBC_CAN_ID;
       final formatter = CanIdFormatter(canId);
 
       // Get current state
@@ -402,12 +379,11 @@ class OBD2Service extends _$OBD2Service {
 
       if (needModeSwitch) {
         if (formatter.isExtended) {
-          await _sendCommandAndWait('atsp7', 200); // Switch to 29-bit mode
+          await _sendCommandAndWait('atsp7', 200);
           ref.read(oBD2DataProvider.notifier).setCanMode('29bit');
-          // Set priority using AT CP
           await _sendCommandAndWait('atcp${formatter.getToIdHexMSB()}', 200);
         } else {
-          await _sendCommandAndWait('atsp6', 200); // Switch to 11-bit mode
+          await _sendCommandAndWait('atsp6', 200);
           ref.read(oBD2DataProvider.notifier).setCanMode('11bit');
         }
       }
@@ -497,6 +473,7 @@ class OBD2Service extends _$OBD2Service {
 
   // Subscribe to characteristic updates
   void subscribeToData() async {
+    print(" subscribeToData()");
     // Cancel any existing subscription and timer
     _subscription?.cancel();
     _dataRequestTimer?.cancel();
@@ -518,31 +495,34 @@ class OBD2Service extends _$OBD2Service {
     // Set up the subscription for receiving data
     _subscription = _ble
         .subscribeToCharacteristic(
-          QualifiedCharacteristic(
-            deviceId: ref.read(selectedDeviceProvider)!.id,
-            serviceId: Uuid.parse(serviceUuid),
-            characteristicId: Uuid.parse(characteristicUuid),
-          ),
-        )
+      QualifiedCharacteristic(
+        deviceId: ref.read(selectedDeviceProvider)!.id,
+        serviceId: Uuid.parse(serviceUuid),
+        characteristicId: Uuid.parse(characteristicUuid),
+      ),
+    )
         .listen(
-          (data) {
-            print('Raw data received: ${data.toList()}');
-            final parsedData = parseData(data);
-            if (parsedData.isNotEmpty) {
-              ref.read(oBD2DataProvider.notifier).updateData(parsedData);
-            }
-          },
-          onError: (dynamic error) {
-            print('Error in subscription: $error');
-            _isInitialized = false;
-            _dataRequestTimer?.cancel(); // Cancel timer on error
-            ref
-                .read(oBD2DataProvider.notifier)
-                .setError('Subscription error: $error');
-            ref.read(oBD2DataProvider.notifier).setConnectionStatus('Error');
-          },
-          cancelOnError: false,
-        );
+      (data) {
+        print("Subscription");
+        String response = String.fromCharCodes(data).trim();
+        print('Response received: ${response}');
+        print('Raw data received: ${data.toList()}');
+        final parsedData = parseData(data);
+        if (parsedData.isNotEmpty) {
+          ref.read(oBD2DataProvider.notifier).updateData(parsedData);
+        }
+      },
+      onError: (dynamic error) {
+        print('Error in subscription: $error');
+        _isInitialized = false;
+        _dataRequestTimer?.cancel(); // Cancel timer on error
+        ref
+            .read(oBD2DataProvider.notifier)
+            .setError('Subscription error: $error');
+        ref.read(oBD2DataProvider.notifier).setConnectionStatus('Error');
+      },
+      cancelOnError: false,
+    );
 
     // Start periodic data requests only if initialized
     if (_isInitialized) {
@@ -556,11 +536,7 @@ class OBD2Service extends _$OBD2Service {
         }
 
         try {
-          // Request Spring-specific data points
-          await requestData(PID_BATTERY_VOLTAGE); // Battery Voltage
-          await requestData(PID_VEHICLE_SPEED); // Vehicle Speed
-          await requestData(PID_BATTERY_TEMP); // Battery Temperature
-          await requestData(PID_BATTERY_CURRENT); // Battery Current
+          await requestData(PID_EXTERNAL_TEMP, EVC_CAN_ID);
         } catch (e) {
           print('Error in periodic data request: $e');
           _isInitialized = false; // Mark as uninitialized on error
@@ -579,11 +555,10 @@ class OBD2Service extends _$OBD2Service {
 
     try {
       // Convert data to hex string
-      String hexData =
-          data
-              .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
-              .join()
-              .toUpperCase();
+      String hexData = data
+          .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+          .join()
+          .toUpperCase();
 
       // Get current state to maintain other values
       final currentState = ref.read(oBD2DataProvider);
@@ -598,18 +573,9 @@ class OBD2Service extends _$OBD2Service {
       }
 
       // Parse based on the response PID
-      if (hexData.contains(RESP_BATTERY_VOLTAGE)) {
-        // Battery Voltage
-        parsedData['voltage'] = _parseVoltage(hexData);
-      } else if (hexData.contains(RESP_VEHICLE_SPEED)) {
-        // Vehicle Speed
-        parsedData['speed'] = _parseSpeed(hexData);
-      } else if (hexData.contains(RESP_BATTERY_TEMP)) {
-        // Battery Temperature
-        parsedData['temperature'] = _parseTemperature(hexData);
-      } else if (hexData.contains(RESP_BATTERY_CURRENT)) {
-        // Battery Current
-        parsedData['current'] = _parseCurrent(hexData);
+      if (hexData.contains(RESP_EXTERNAL_TEMP)) {
+        // External Temperature
+        parsedData['externalTemperature'] = _parseExternalTemperature(hexData);
       }
 
       return parsedData;
@@ -620,34 +586,12 @@ class OBD2Service extends _$OBD2Service {
     }
   }
 
-  // Helper methods to parse specific data types
-  double _parseVoltage(String hexData) {
+  // Helper method to parse external temperature
+  double _parseExternalTemperature(String hexData) {
     if (hexData.isEmpty) return 0.0;
-    // Extract the value after the PID
-    String value = hexData.split(RESP_BATTERY_VOLTAGE)[1].trim();
+    String value = hexData.split(RESP_EXTERNAL_TEMP)[1].trim();
     int rawValue = int.parse(value, radix: 16);
-    return rawValue * 0.1; // Scale: 0.1 V
-  }
-
-  double _parseSpeed(String hexData) {
-    if (hexData.isEmpty) return 0.0;
-    String value = hexData.split(RESP_VEHICLE_SPEED)[1].trim();
-    int rawValue = int.parse(value, radix: 16);
-    return rawValue * 0.01; // Scale: 0.01 km/h
-  }
-
-  double _parseTemperature(String hexData) {
-    if (hexData.isEmpty) return 0.0;
-    String value = hexData.split(RESP_BATTERY_TEMP)[1].trim();
-    int rawValue = int.parse(value, radix: 16);
-    return rawValue - 40; // Scale: 1 °C, offset: 40
-  }
-
-  double _parseCurrent(String hexData) {
-    if (hexData.isEmpty) return 0.0;
-    String value = hexData.split(RESP_BATTERY_CURRENT)[1].trim();
-    int rawValue = int.parse(value, radix: 16);
-    return (rawValue - 48000) * 0.025; // Scale: 0.025 A, offset: 48000
+    return rawValue * 1.0; // Scale: 1 °C
   }
 
   @override
