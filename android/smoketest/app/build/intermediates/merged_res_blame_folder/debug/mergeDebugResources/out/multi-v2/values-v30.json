@@ -1,0 +1,19 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.obd.smoke.app-mergeDebugResources-57:/values-v30/values-v30.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\Theekshana\\.gradle\\caches\\8.9\\transforms\\76f3999add96ac7d2bdb4cdf3428a23a\\transformed\\jetified-material3-release\\res\\values-v30\\values-v30.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "72",
+                        "endOffsets": "123"
+                    }
+                }
+            ]
+        }
+    ]
+}
