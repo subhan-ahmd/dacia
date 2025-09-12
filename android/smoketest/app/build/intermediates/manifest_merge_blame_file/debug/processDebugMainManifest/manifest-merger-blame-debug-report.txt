@@ -1,0 +1,189 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.obd.smoke"
+4    android:versionCode="1"
+5    android:versionName="1.0.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="26"
+9        android:targetSdkVersion="34" />
+10
+11    <!-- Legacy Bluetooth + location (pre-Android 12 scan needs location) -->
+12    <uses-permission android:name="android.permission.BLUETOOTH" />
+12-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:5:3-66
+12-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:5:20-63
+13    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+13-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:6:3-72
+13-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:6:20-69
+14    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+14-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:7:3-79
+14-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:7:20-76
+15    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+15-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:8:3-77
+15-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:8:20-74
+16
+17    <!-- Android 12+ granular Bluetooth permissions -->
+18    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+18-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:11:3-74
+18-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:11:20-71
+19    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+19-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:12:3-71
+19-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:12:20-68
+20
+21    <!-- Foreground service + required type-specific permissions (Android 14+) -->
+22    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+22-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:15:3-75
+22-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:15:20-72
+23    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+23-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:16:3-92
+23-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:16:20-89
+24    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+24-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:17:3-85
+24-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:17:20-82
+25
+26    <!-- Optional: notifications for foreground service status (Android 13+) -->
+27    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+27-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:20:3-75
+27-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:20:20-72
+28
+29    <!-- Optional but recommended -->
+30    <uses-feature
+30-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:23:3-89
+31        android:name="android.hardware.bluetooth_le"
+31-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:23:17-61
+32        android:required="false" />
+32-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:23:62-86
+33
+34    <permission
+34-->[androidx.core:core:1.13.1] C:\Users\Theekshana\.gradle\caches\8.9\transforms\2bee581e747e59b2cb79f8d20b7a34b3\transformed\core-1.13.1\AndroidManifest.xml:22:5-24:47
+35        android:name="com.obd.smoke.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+35-->[androidx.core:core:1.13.1] C:\Users\Theekshana\.gradle\caches\8.9\transforms\2bee581e747e59b2cb79f8d20b7a34b3\transformed\core-1.13.1\AndroidManifest.xml:23:9-81
+36        android:protectionLevel="signature" />
+36-->[androidx.core:core:1.13.1] C:\Users\Theekshana\.gradle\caches\8.9\transforms\2bee581e747e59b2cb79f8d20b7a34b3\transformed\core-1.13.1\AndroidManifest.xml:24:9-44
+37
+38    <uses-permission android:name="com.obd.smoke.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+38-->[androidx.core:core:1.13.1] C:\Users\Theekshana\.gradle\caches\8.9\transforms\2bee581e747e59b2cb79f8d20b7a34b3\transformed\core-1.13.1\AndroidManifest.xml:26:5-97
+38-->[androidx.core:core:1.13.1] C:\Users\Theekshana\.gradle\caches\8.9\transforms\2bee581e747e59b2cb79f8d20b7a34b3\transformed\core-1.13.1\AndroidManifest.xml:26:22-94
+39
+40    <application
+40-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:25:3-49:17
+41        android:allowBackup="true"
+41-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:26:7-33
+42        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+42-->[androidx.core:core:1.13.1] C:\Users\Theekshana\.gradle\caches\8.9\transforms\2bee581e747e59b2cb79f8d20b7a34b3\transformed\core-1.13.1\AndroidManifest.xml:28:18-86
+43        android:debuggable="true"
+44        android:extractNativeLibs="false"
+45        android:icon="@mipmap/ic_launcher"
+45-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:28:7-41
+46        android:label="OBD Smoke Test"
+46-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:27:7-37
+47        android:roundIcon="@mipmap/ic_launcher_round"
+47-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:29:7-52
+48        android:supportsRtl="true"
+48-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:30:7-33
+49        android:theme="@style/Theme.App" >
+49-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:31:7-39
+50
+51        <!-- BLE/ELM foreground service (not exported) -->
+52        <service
+52-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:34:5-37:68
+53            android:name="com.obd.smoke.ble.BleElmService"
+53-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:35:9-42
+54            android:exported="false"
+54-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:36:9-33
+55            android:foregroundServiceType="connectedDevice|dataSync" />
+55-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:37:9-65
+56
+57        <!-- LAUNCHER activity must be exported=true on Android 12+ -->
+58        <activity
+58-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:40:5-47:16
+59            android:name="com.obd.smoke.ui.MainActivity"
+59-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:41:9-40
+60            android:exported="true" >
+60-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:42:9-32
+61            <intent-filter>
+61-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:43:7-46:23
+62                <action android:name="android.intent.action.MAIN" />
+62-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:44:9-61
+62-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:44:17-58
+63
+64                <category android:name="android.intent.category.LAUNCHER" />
+64-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:45:9-69
+64-->E:\obdandroidproj\New folder\app\src\main\AndroidManifest.xml:45:19-66
+65            </intent-filter>
+66        </activity>
+67        <activity
+67-->[androidx.compose.ui:ui-tooling-android:1.7.2] C:\Users\Theekshana\.gradle\caches\8.9\transforms\88b469494f81006c6bb4cf0f8d935838\transformed\jetified-ui-tooling-release\AndroidManifest.xml:23:9-25:39
+68            android:name="androidx.compose.ui.tooling.PreviewActivity"
+68-->[androidx.compose.ui:ui-tooling-android:1.7.2] C:\Users\Theekshana\.gradle\caches\8.9\transforms\88b469494f81006c6bb4cf0f8d935838\transformed\jetified-ui-tooling-release\AndroidManifest.xml:24:13-71
+69            android:exported="true" />
+69-->[androidx.compose.ui:ui-tooling-android:1.7.2] C:\Users\Theekshana\.gradle\caches\8.9\transforms\88b469494f81006c6bb4cf0f8d935838\transformed\jetified-ui-tooling-release\AndroidManifest.xml:25:13-36
+70
+71        <provider
+71-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Theekshana\.gradle\caches\8.9\transforms\df207dd046539ce9f94afc82f69a0293\transformed\jetified-emoji2-1.3.0\AndroidManifest.xml:24:9-32:20
+72            android:name="androidx.startup.InitializationProvider"
+72-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Theekshana\.gradle\caches\8.9\transforms\df207dd046539ce9f94afc82f69a0293\transformed\jetified-emoji2-1.3.0\AndroidManifest.xml:25:13-67
+73            android:authorities="com.obd.smoke.androidx-startup"
+73-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Theekshana\.gradle\caches\8.9\transforms\df207dd046539ce9f94afc82f69a0293\transformed\jetified-emoji2-1.3.0\AndroidManifest.xml:26:13-68
+74            android:exported="false" >
+74-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Theekshana\.gradle\caches\8.9\transforms\df207dd046539ce9f94afc82f69a0293\transformed\jetified-emoji2-1.3.0\AndroidManifest.xml:27:13-37
+75            <meta-data
+75-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Theekshana\.gradle\caches\8.9\transforms\df207dd046539ce9f94afc82f69a0293\transformed\jetified-emoji2-1.3.0\AndroidManifest.xml:29:13-31:52
+76                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+76-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Theekshana\.gradle\caches\8.9\transforms\df207dd046539ce9f94afc82f69a0293\transformed\jetified-emoji2-1.3.0\AndroidManifest.xml:30:17-75
+77                android:value="androidx.startup" />
+77-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Theekshana\.gradle\caches\8.9\transforms\df207dd046539ce9f94afc82f69a0293\transformed\jetified-emoji2-1.3.0\AndroidManifest.xml:31:17-49
+78            <meta-data
+78-->[androidx.lifecycle:lifecycle-process:2.8.6] C:\Users\Theekshana\.gradle\caches\8.9\transforms\b160c7a0df58157ba86a0122fb254db9\transformed\jetified-lifecycle-process-2.8.6\AndroidManifest.xml:29:13-31:52
+79                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+79-->[androidx.lifecycle:lifecycle-process:2.8.6] C:\Users\Theekshana\.gradle\caches\8.9\transforms\b160c7a0df58157ba86a0122fb254db9\transformed\jetified-lifecycle-process-2.8.6\AndroidManifest.xml:30:17-78
+80                android:value="androidx.startup" />
+80-->[androidx.lifecycle:lifecycle-process:2.8.6] C:\Users\Theekshana\.gradle\caches\8.9\transforms\b160c7a0df58157ba86a0122fb254db9\transformed\jetified-lifecycle-process-2.8.6\AndroidManifest.xml:31:17-49
+81            <meta-data
+81-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Theekshana\.gradle\caches\8.9\transforms\ff80613eacab04c1fa507d623b308e79\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:29:13-31:52
+82                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+82-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Theekshana\.gradle\caches\8.9\transforms\ff80613eacab04c1fa507d623b308e79\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:30:17-85
+83                android:value="androidx.startup" />
+83-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Theekshana\.gradle\caches\8.9\transforms\ff80613eacab04c1fa507d623b308e79\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:31:17-49
+84        </provider>
+85
+86        <receiver
+86-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Theekshana\.gradle\caches\8.9\transforms\ff80613eacab04c1fa507d623b308e79\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:34:9-52:20
+87            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+87-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Theekshana\.gradle\caches\8.9\transforms\ff80613eacab04c1fa507d623b308e79\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:35:13-76
+88            android:directBootAware="false"
+88-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Theekshana\.gradle\caches\8.9\transforms\ff80613eacab04c1fa507d623b308e79\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:36:13-44
+89            android:enabled="true"
+89-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Theekshana\.gradle\caches\8.9\transforms\ff80613eacab04c1fa507d623b308e79\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:37:13-35
+90            android:exported="true"
+90-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Theekshana\.gradle\caches\8.9\transforms\ff80613eacab04c1fa507d623b308e79\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:38:13-36
+91            android:permission="android.permission.DUMP" >
+91-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Theekshana\.gradle\caches\8.9\transforms\ff80613eacab04c1fa507d623b308e79\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:39:13-57
+92            <intent-filter>
+92-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Theekshana\.gradle\caches\8.9\transforms\ff80613eacab04c1fa507d623b308e79\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:40:13-42:29
+93                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+93-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Theekshana\.gradle\caches\8.9\transforms\ff80613eacab04c1fa507d623b308e79\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:41:17-91
+93-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Theekshana\.gradle\caches\8.9\transforms\ff80613eacab04c1fa507d623b308e79\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:41:25-88
+94            </intent-filter>
+95            <intent-filter>
+95-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Theekshana\.gradle\caches\8.9\transforms\ff80613eacab04c1fa507d623b308e79\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:43:13-45:29
+96                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+96-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Theekshana\.gradle\caches\8.9\transforms\ff80613eacab04c1fa507d623b308e79\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:44:17-85
+96-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Theekshana\.gradle\caches\8.9\transforms\ff80613eacab04c1fa507d623b308e79\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:44:25-82
+97            </intent-filter>
+98            <intent-filter>
+98-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Theekshana\.gradle\caches\8.9\transforms\ff80613eacab04c1fa507d623b308e79\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:46:13-48:29
+99                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+99-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Theekshana\.gradle\caches\8.9\transforms\ff80613eacab04c1fa507d623b308e79\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:47:17-88
+99-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Theekshana\.gradle\caches\8.9\transforms\ff80613eacab04c1fa507d623b308e79\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:47:25-85
+100            </intent-filter>
+101            <intent-filter>
+101-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Theekshana\.gradle\caches\8.9\transforms\ff80613eacab04c1fa507d623b308e79\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:49:13-51:29
+102                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+102-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Theekshana\.gradle\caches\8.9\transforms\ff80613eacab04c1fa507d623b308e79\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:50:17-95
+102-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Theekshana\.gradle\caches\8.9\transforms\ff80613eacab04c1fa507d623b308e79\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:50:25-92
+103            </intent-filter>
+104        </receiver>
+105    </application>
+106
+107</manifest>

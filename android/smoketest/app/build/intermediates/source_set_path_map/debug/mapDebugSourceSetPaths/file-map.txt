@@ -1,0 +1,62 @@
+com.obd.smoke.app-jetified-ui-util-release-0 C:\Users\Theekshana\.gradle\caches\8.9\transforms\0760dc6d4c20f94a3c12c952788891e3\transformed\jetified-ui-util-release\res
+com.obd.smoke.app-jetified-emoji2-views-helper-1.3.0-1 C:\Users\Theekshana\.gradle\caches\8.9\transforms\09652dbd2789fbdd265087ebd3b2ebc6\transformed\jetified-emoji2-views-helper-1.3.0\res
+com.obd.smoke.app-drawerlayout-1.1.1-2 C:\Users\Theekshana\.gradle\caches\8.9\transforms\10acc5756bbdaec08e121ed8ac2e3d38\transformed\drawerlayout-1.1.1\res
+com.obd.smoke.app-jetified-material-ripple-release-3 C:\Users\Theekshana\.gradle\caches\8.9\transforms\10ed815a7344884bd528f8736051b81e\transformed\jetified-material-ripple-release\res
+com.obd.smoke.app-jetified-core-ktx-1.13.1-4 C:\Users\Theekshana\.gradle\caches\8.9\transforms\1129c23ae92aae1c6a631fd59df4a299\transformed\jetified-core-ktx-1.13.1\res
+com.obd.smoke.app-jetified-animation-core-release-5 C:\Users\Theekshana\.gradle\caches\8.9\transforms\1a231b2424621dddcc69fcc62623b038\transformed\jetified-animation-core-release\res
+com.obd.smoke.app-jetified-material-release-6 C:\Users\Theekshana\.gradle\caches\8.9\transforms\2335d0466eabe7741aaa398500398046\transformed\jetified-material-release\res
+com.obd.smoke.app-jetified-runtime-release-7 C:\Users\Theekshana\.gradle\caches\8.9\transforms\2482ceb7de91d7e4e20020b8bfb33d80\transformed\jetified-runtime-release\res
+com.obd.smoke.app-jetified-activity-ktx-1.9.2-8 C:\Users\Theekshana\.gradle\caches\8.9\transforms\2754e0696f4fbedcc136acaec818bf0f\transformed\jetified-activity-ktx-1.9.2\res
+com.obd.smoke.app-jetified-appcompat-resources-1.6.1-9 C:\Users\Theekshana\.gradle\caches\8.9\transforms\2a165d2439f941cad5237cf2ae81cbcb\transformed\jetified-appcompat-resources-1.6.1\res
+com.obd.smoke.app-core-1.13.1-10 C:\Users\Theekshana\.gradle\caches\8.9\transforms\2bee581e747e59b2cb79f8d20b7a34b3\transformed\core-1.13.1\res
+com.obd.smoke.app-constraintlayout-2.0.1-11 C:\Users\Theekshana\.gradle\caches\8.9\transforms\2d5feedb6ad1a5b178c9c797d5b941c8\transformed\constraintlayout-2.0.1\res
+com.obd.smoke.app-jetified-ui-unit-release-12 C:\Users\Theekshana\.gradle\caches\8.9\transforms\2eda6da4c7f9974db52bf90febaa0aa9\transformed\jetified-ui-unit-release\res
+com.obd.smoke.app-jetified-graphics-path-1.0.1-13 C:\Users\Theekshana\.gradle\caches\8.9\transforms\36f4cbb15be7472a9a643ff9d28223bf\transformed\jetified-graphics-path-1.0.1\res
+com.obd.smoke.app-jetified-startup-runtime-1.1.1-14 C:\Users\Theekshana\.gradle\caches\8.9\transforms\3afb94353834d115b2fbdc8032c00c1f\transformed\jetified-startup-runtime-1.1.1\res
+com.obd.smoke.app-jetified-ui-tooling-data-release-15 C:\Users\Theekshana\.gradle\caches\8.9\transforms\3b968279ebd78cf613c1e8d892923828\transformed\jetified-ui-tooling-data-release\res
+com.obd.smoke.app-lifecycle-livedata-core-2.8.6-16 C:\Users\Theekshana\.gradle\caches\8.9\transforms\40e859f5ef820ca25997f26b3d8efae6\transformed\lifecycle-livedata-core-2.8.6\res
+com.obd.smoke.app-jetified-ui-release-17 C:\Users\Theekshana\.gradle\caches\8.9\transforms\46f09d3c5e30e89198756f1a44087b63\transformed\jetified-ui-release\res
+com.obd.smoke.app-appcompat-1.6.1-18 C:\Users\Theekshana\.gradle\caches\8.9\transforms\489845b00790d3a07cda5718939d5928\transformed\appcompat-1.6.1\res
+com.obd.smoke.app-core-runtime-2.2.0-19 C:\Users\Theekshana\.gradle\caches\8.9\transforms\4982b9790bb3724b123ad049c27319a7\transformed\core-runtime-2.2.0\res
+com.obd.smoke.app-jetified-foundation-layout-release-20 C:\Users\Theekshana\.gradle\caches\8.9\transforms\4a253b5ac0900dbb6cf1097baefa8c50\transformed\jetified-foundation-layout-release\res
+com.obd.smoke.app-coordinatorlayout-1.1.0-21 C:\Users\Theekshana\.gradle\caches\8.9\transforms\4bb803457f320f7164d41910772d740a\transformed\coordinatorlayout-1.1.0\res
+com.obd.smoke.app-jetified-ui-tooling-preview-release-22 C:\Users\Theekshana\.gradle\caches\8.9\transforms\52a601d9c69334c1a3b13cd6b0783dc2\transformed\jetified-ui-tooling-preview-release\res
+com.obd.smoke.app-jetified-lifecycle-viewmodel-ktx-2.8.6-23 C:\Users\Theekshana\.gradle\caches\8.9\transforms\54e01cc2f08bb612b92959114a41b606\transformed\jetified-lifecycle-viewmodel-ktx-2.8.6\res
+com.obd.smoke.app-jetified-animation-release-24 C:\Users\Theekshana\.gradle\caches\8.9\transforms\54e1232afce63c23b9ecd9e21ac26778\transformed\jetified-animation-release\res
+com.obd.smoke.app-jetified-lifecycle-livedata-core-ktx-2.8.6-25 C:\Users\Theekshana\.gradle\caches\8.9\transforms\56c3baabf5f203fe4b74d3682c02a0b7\transformed\jetified-lifecycle-livedata-core-ktx-2.8.6\res
+com.obd.smoke.app-jetified-activity-1.9.2-26 C:\Users\Theekshana\.gradle\caches\8.9\transforms\5b7d58e05c0af44d611ae9f3ae4e8489\transformed\jetified-activity-1.9.2\res
+com.obd.smoke.app-jetified-lifecycle-viewmodel-savedstate-2.8.6-27 C:\Users\Theekshana\.gradle\caches\8.9\transforms\5e8dba64800bbb3a6882630659252f45\transformed\jetified-lifecycle-viewmodel-savedstate-2.8.6\res
+com.obd.smoke.app-jetified-ui-graphics-release-28 C:\Users\Theekshana\.gradle\caches\8.9\transforms\6a0554713caba64b4ac9d78084b234ce\transformed\jetified-ui-graphics-release\res
+com.obd.smoke.app-fragment-1.3.6-29 C:\Users\Theekshana\.gradle\caches\8.9\transforms\71cea386f58047305cd1ad5a0c4919d1\transformed\fragment-1.3.6\res
+com.obd.smoke.app-jetified-material3-release-30 C:\Users\Theekshana\.gradle\caches\8.9\transforms\76f3999add96ac7d2bdb4cdf3428a23a\transformed\jetified-material3-release\res
+com.obd.smoke.app-jetified-lifecycle-runtime-ktx-release-31 C:\Users\Theekshana\.gradle\caches\8.9\transforms\8038338c8b37acad8af054585d7e368e\transformed\jetified-lifecycle-runtime-ktx-release\res
+com.obd.smoke.app-jetified-ui-geometry-release-32 C:\Users\Theekshana\.gradle\caches\8.9\transforms\81ec0f484387e4e807037aaf9905fbe2\transformed\jetified-ui-geometry-release\res
+com.obd.smoke.app-jetified-ui-tooling-release-33 C:\Users\Theekshana\.gradle\caches\8.9\transforms\88b469494f81006c6bb4cf0f8d935838\transformed\jetified-ui-tooling-release\res
+com.obd.smoke.app-recyclerview-1.1.0-34 C:\Users\Theekshana\.gradle\caches\8.9\transforms\a2bec1d8557102e17afb37524bdc1cf3\transformed\recyclerview-1.1.0\res
+com.obd.smoke.app-jetified-runtime-saveable-release-35 C:\Users\Theekshana\.gradle\caches\8.9\transforms\a5154eaa4e2b7114d9a5273eb47268a1\transformed\jetified-runtime-saveable-release\res
+com.obd.smoke.app-transition-1.5.0-36 C:\Users\Theekshana\.gradle\caches\8.9\transforms\a63fe7b2c9a67e2c284be2e8d04dba83\transformed\transition-1.5.0\res
+com.obd.smoke.app-jetified-lifecycle-runtime-compose-release-37 C:\Users\Theekshana\.gradle\caches\8.9\transforms\add1058920ec6fb42fff9199cb2c69a1\transformed\jetified-lifecycle-runtime-compose-release\res
+com.obd.smoke.app-jetified-foundation-release-38 C:\Users\Theekshana\.gradle\caches\8.9\transforms\ae062a3c7e15a88dbe1286d75a37505e\transformed\jetified-foundation-release\res
+com.obd.smoke.app-jetified-lifecycle-process-2.8.6-39 C:\Users\Theekshana\.gradle\caches\8.9\transforms\b160c7a0df58157ba86a0122fb254db9\transformed\jetified-lifecycle-process-2.8.6\res
+com.obd.smoke.app-jetified-ui-text-release-40 C:\Users\Theekshana\.gradle\caches\8.9\transforms\b629326032357b63d3dd8ad5b639c3fd\transformed\jetified-ui-text-release\res
+com.obd.smoke.app-jetified-customview-poolingcontainer-1.0.0-41 C:\Users\Theekshana\.gradle\caches\8.9\transforms\b7382114a32ebe87028f251d2c378473\transformed\jetified-customview-poolingcontainer-1.0.0\res
+com.obd.smoke.app-jetified-lifecycle-runtime-release-42 C:\Users\Theekshana\.gradle\caches\8.9\transforms\bf40586ca4766d6554c2a065a9c0e838\transformed\jetified-lifecycle-runtime-release\res
+com.obd.smoke.app-jetified-annotation-experimental-1.4.1-43 C:\Users\Theekshana\.gradle\caches\8.9\transforms\c55623d1a6c8445d7468105c18dd1015\transformed\jetified-annotation-experimental-1.4.1\res
+com.obd.smoke.app-lifecycle-livedata-2.8.6-44 C:\Users\Theekshana\.gradle\caches\8.9\transforms\c88ace786a115c5f06c2fb52104c7dd3\transformed\lifecycle-livedata-2.8.6\res
+com.obd.smoke.app-jetified-lifecycle-viewmodel-release-45 C:\Users\Theekshana\.gradle\caches\8.9\transforms\d96f9f2a5d23e45de2dd56aa14920faf\transformed\jetified-lifecycle-viewmodel-release\res
+com.obd.smoke.app-jetified-emoji2-1.3.0-46 C:\Users\Theekshana\.gradle\caches\8.9\transforms\df207dd046539ce9f94afc82f69a0293\transformed\jetified-emoji2-1.3.0\res
+com.obd.smoke.app-material-1.12.0-47 C:\Users\Theekshana\.gradle\caches\8.9\transforms\e755eabefc8d41e3a0ec20d00f2ee3fe\transformed\material-1.12.0\res
+com.obd.smoke.app-jetified-savedstate-1.2.1-48 C:\Users\Theekshana\.gradle\caches\8.9\transforms\e89ad1e35b2b3fbb29eca083fa18a6c4\transformed\jetified-savedstate-1.2.1\res
+com.obd.smoke.app-jetified-material-icons-core-release-49 C:\Users\Theekshana\.gradle\caches\8.9\transforms\f632cd0623a2da54004a2c6b191b05b5\transformed\jetified-material-icons-core-release\res
+com.obd.smoke.app-cardview-1.0.0-50 C:\Users\Theekshana\.gradle\caches\8.9\transforms\f9df600691216f3318e0081d02c81686\transformed\cardview-1.0.0\res
+com.obd.smoke.app-jetified-viewpager2-1.0.0-51 C:\Users\Theekshana\.gradle\caches\8.9\transforms\fb8a700bbc1bc8432b00525ab72e8935\transformed\jetified-viewpager2-1.0.0\res
+com.obd.smoke.app-jetified-savedstate-ktx-1.2.1-52 C:\Users\Theekshana\.gradle\caches\8.9\transforms\fd738dc00b8dd1e442ff6316a63a4d85\transformed\jetified-savedstate-ktx-1.2.1\res
+com.obd.smoke.app-jetified-activity-compose-1.9.2-53 C:\Users\Theekshana\.gradle\caches\8.9\transforms\fd78211f38dd5ba35e92ab36d18fe676\transformed\jetified-activity-compose-1.9.2\res
+com.obd.smoke.app-jetified-profileinstaller-1.3.1-54 C:\Users\Theekshana\.gradle\caches\8.9\transforms\ff80613eacab04c1fa507d623b308e79\transformed\jetified-profileinstaller-1.3.1\res
+com.obd.smoke.app-pngs-55 E:\obdandroidproj\New folder\app\build\generated\res\pngs\debug
+com.obd.smoke.app-resValues-56 E:\obdandroidproj\New folder\app\build\generated\res\resValues\debug
+com.obd.smoke.app-packageDebugResources-57 E:\obdandroidproj\New folder\app\build\intermediates\incremental\debug\packageDebugResources\merged.dir
+com.obd.smoke.app-packageDebugResources-58 E:\obdandroidproj\New folder\app\build\intermediates\incremental\debug\packageDebugResources\stripped.dir
+com.obd.smoke.app-debug-59 E:\obdandroidproj\New folder\app\build\intermediates\merged_res\debug\mergeDebugResources
+com.obd.smoke.app-debug-60 E:\obdandroidproj\New folder\app\src\debug\res
+com.obd.smoke.app-main-61 E:\obdandroidproj\New folder\app\src\main\res

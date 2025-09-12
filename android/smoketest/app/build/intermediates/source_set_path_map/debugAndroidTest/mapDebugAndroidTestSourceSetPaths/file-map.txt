@@ -1,0 +1,4 @@
+com.obd.smoke.test.app-androidTest-0 E:\obdandroidproj\New folder\app\build\generated\res\resValues\androidTest\debug
+com.obd.smoke.test.app-mergeDebugAndroidTestResources-1 E:\obdandroidproj\New folder\app\build\intermediates\incremental\debugAndroidTest\mergeDebugAndroidTestResources\merged.dir
+com.obd.smoke.test.app-mergeDebugAndroidTestResources-2 E:\obdandroidproj\New folder\app\build\intermediates\incremental\debugAndroidTest\mergeDebugAndroidTestResources\stripped.dir
+com.obd.smoke.test.app-debugAndroidTest-3 E:\obdandroidproj\New folder\app\build\intermediates\merged_res\debugAndroidTest\mergeDebugAndroidTestResources

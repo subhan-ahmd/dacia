@@ -1,0 +1,20 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.obd.smoke.app-mergeDebugResources-57:/values-watch-v20/values-watch-v20.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\Theekshana\\.gradle\\caches\\8.9\\transforms\\489845b00790d3a07cda5718939d5928\\transformed\\appcompat-1.6.1\\res\\values-watch-v20\\values-watch-v20.xml",
+                    "from": {
+                        "startLines": "2,5,8",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "55,214,385",
+                        "endLines": "4,7,10",
+                        "endColumns": "12,12,12",
+                        "endOffsets": "209,380,553"
+                    }
+                }
+            ]
+        }
+    ]
+}
